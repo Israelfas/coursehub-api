@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { CreateCourseDto } from './dto/create-course.dto.js';
+import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CoursesService } from './courses.service.js';
 
 @Controller('courses')
@@ -31,11 +32,8 @@ export class CoursesController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() body: { title?: string; level?: string },
-  ) {
-    return this.coursesService.update(Number(id), body);
+  update(@Param('id') id: string, @Body() updateCourseDto: UpdateCourseDto) {
+    return this.coursesService.update(Number(id), updateCourseDto);
   }
 
   @Delete(':id')

@@ -30,14 +30,14 @@
 CourseHub API exposes an in-memory `courses` resource. Data returns to its initial
 state whenever the server restarts.
 
-| Method | Endpoint                  | Description                      |
-| ------ | ------------------------- | -------------------------------- |
-| GET    | `/courses`                | Lists all courses.               |
-| GET    | `/courses?level=beginner` | Lists courses filtered by level. |
-| GET    | `/courses/:id`            | Gets a course by id.             |
-| POST   | `/courses`                | Creates a course.                |
-| PATCH  | `/courses/:id`            | Partially updates a course.      |
-| DELETE | `/courses/:id`            | Deletes a course.                |
+| Method | Endpoint                  | Description                                                         |
+| ------ | ------------------------- | ------------------------------------------------------------------- |
+| GET    | `/courses`                | Lists all courses.                                                  |
+| GET    | `/courses?level=beginner` | Lists courses filtered by level.                                    |
+| GET    | `/courses/:id`            | Gets a course by id; 404 if absent.                                 |
+| POST   | `/courses`                | Creates a course.                                                   |
+| PATCH  | `/courses/:id`            | Partially updates a course; 400 for invalid data and 404 if absent. |
+| DELETE | `/courses/:id`            | Deletes a course; 404 if absent.                                    |
 
 Example request body for `POST /courses`:
 
@@ -59,6 +59,9 @@ For `PATCH /courses/:id`, send only the fields to change:
   "title": "Testing APIs with NestJS"
 }
 ```
+
+The same validation rules used for creation apply to supplied PATCH fields. For
+example, `level` must be `beginner`, `intermediate`, or `advanced`.
 
 ## Project setup
 

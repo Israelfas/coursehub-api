@@ -105,6 +105,40 @@ describe('Courses endpoints (e2e)', () => {
       });
   });
 
+  it('partially updates a course with a valid body', async () => {
+    await request(app.getHttpServer())
+      .patch('/courses/1')
+      .send({ level: 'advanced' })
+      .expect(200)
+      .expect({ id: 1, title: 'NestJS Fundamentals', level: 'advanced' });
+
+    await request(app.getHttpServer())
+      .get('/courses/1')
+      .expect(200)
+      .expect({ id: 1, title: 'NestJS Fundamentals', level: 'advanced' });
+  });
+
+  it('rejects an invalid partial update without changing the course', async () => {
+    await request(app.getHttpServer())
+      .patch('/courses/1')
+      .send({ level: 'expert' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .get('/courses/1')
+      .expect(200)
+      .expect({ id: 1, title: 'NestJS Fundamentals', level: 'beginner' });
+  });
+
+  it('returns 404 for operations on a missing course', async () => {
+    await request(app.getHttpServer()).get('/courses/999').expect(404);
+    await request(app.getHttpServer())
+      .patch('/courses/999')
+      .send({ level: 'advanced' })
+      .expect(404);
+    await request(app.getHttpServer()).delete('/courses/999').expect(404);
+  });
+
   afterEach(async () => {
     await app.close();
   });

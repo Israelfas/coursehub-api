@@ -1,15 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCourseDto } from './dto/create-course.dto.js';
+import { UpdateCourseDto } from './dto/update-course.dto.js';
 
 type Course = {
   id: number;
   title: string;
   level: string;
-};
-
-type UpdateCourseInput = {
-  title?: string;
-  level?: string;
 };
 
 @Injectable()
@@ -30,8 +26,14 @@ export class CoursesService {
     return this.courses.filter((course) => course.level === level);
   }
 
-  findOne(id: number): Course | undefined {
-    return this.courses.find((course) => course.id === id);
+  findOne(id: number): Course {
+    const course = this.courses.find((course) => course.id === id);
+
+    if (!course) {
+      throw new NotFoundException(`Course with id ${id} not found`);
+    }
+
+    return course;
   }
 
   create(createCourseDto: CreateCourseDto): Course {
@@ -44,25 +46,18 @@ export class CoursesService {
     return course;
   }
 
-  update(id: number, input: UpdateCourseInput): Course | undefined {
+  update(id: number, input: UpdateCourseDto): Course {
     const course = this.findOne(id);
-
-    if (!course) {
-      return undefined;
-    }
 
     Object.assign(course, input);
     return course;
   }
 
-  remove(id: number): Course | undefined {
-    const index = this.courses.findIndex((course) => course.id === id);
+  remove(id: number): Course {
+    const course = this.findOne(id);
+    const index = this.courses.indexOf(course);
 
-    if (index === -1) {
-      return undefined;
-    }
-
-    const [removedCourse] = this.courses.splice(index, 1);
-    return removedCourse;
+    this.courses.splice(index, 1);
+    return course;
   }
 }
