@@ -1,0 +1,47 @@
+import { INestApplication } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module.js';
+
+describe('Courses endpoints (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('lists every course', () => {
+    return request(app.getHttpServer())
+      .get('/courses')
+      .expect(200)
+      .expect([
+        { id: 1, title: 'NestJS Fundamentals', level: 'beginner' },
+        { id: 2, title: 'REST APIs with NestJS', level: 'beginner' },
+        { id: 3, title: 'NestJS Architecture', level: 'intermediate' },
+      ]);
+  });
+
+  it('gets a course by id', () => {
+    return request(app.getHttpServer())
+      .get('/courses/2')
+      .expect(200)
+      .expect({ id: 2, title: 'REST APIs with NestJS', level: 'beginner' });
+  });
+
+  it('filters courses by level', () => {
+    return request(app.getHttpServer())
+      .get('/courses?level=intermediate')
+      .expect(200)
+      .expect([{ id: 3, title: 'NestJS Architecture', level: 'intermediate' }]);
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+});
