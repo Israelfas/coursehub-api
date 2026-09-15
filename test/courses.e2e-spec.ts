@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -13,6 +13,9 @@ describe('Courses endpoints (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    );
     await app.init();
   });
 
@@ -78,6 +81,28 @@ describe('Courses endpoints (e2e)', () => {
         { id: 2, title: 'REST APIs with NestJS', level: 'beginner' },
         { id: 3, title: 'NestJS Architecture', level: 'intermediate' },
       ]);
+  });
+
+  it('rejects a course with an empty title', () => {
+    return request(app.getHttpServer())
+      .post('/courses')
+      .send({ title: '', level: 'beginner' })
+      .expect(400)
+      .expect((response) => {
+        expect(response.body.message).toContain('title should not be empty');
+      });
+  });
+
+  it('rejects a course with an unsupported level', () => {
+    return request(app.getHttpServer())
+      .post('/courses')
+      .send({ title: 'Testing NestJS', level: 'expert' })
+      .expect(400)
+      .expect((response) => {
+        expect(response.body.message).toContain(
+          'level must be one of the following values: beginner, intermediate, advanced',
+        );
+      });
   });
 
   afterEach(async () => {

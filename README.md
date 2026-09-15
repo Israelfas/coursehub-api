@@ -48,6 +48,10 @@ Example request body for `POST /courses`:
 }
 ```
 
+`POST /courses` responds with `201 Created` for that valid body. It responds with
+`400 Bad Request` when `title` is empty or when `level` is not one of `beginner`,
+`intermediate`, or `advanced`. Additional fields are rejected as well.
+
 For `PATCH /courses/:id`, send only the fields to change:
 
 ```json

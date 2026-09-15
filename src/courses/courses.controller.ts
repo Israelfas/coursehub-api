@@ -8,6 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { CreateCourseDto } from './dto/create-course.dto.js';
 import { CoursesService } from './courses.service.js';
 
 @Controller('courses')
@@ -25,8 +26,8 @@ export class CoursesController {
   }
 
   @Post()
-  create(@Body() body: { title: string; level: string }) {
-    return this.coursesService.create(body);
+  create(@Body() createCourseDto: CreateCourseDto) {
+    return this.coursesService.create(createCourseDto);
   }
 
   @Patch(':id')
