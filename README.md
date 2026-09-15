@@ -63,6 +63,37 @@ For `PATCH /courses/:id`, send only the fields to change:
 The same validation rules used for creation apply to supplied PATCH fields. For
 example, `level` must be `beginner`, `intermediate`, or `advanced`.
 
+## Student endpoints
+
+The `students` resource is also stored in memory while the server runs.
+
+| Method | Endpoint               | Description                                                                     |
+| ------ | ---------------------- | ------------------------------------------------------------------------------- |
+| GET    | `/students`            | Lists students; supports combined `career`, `semester`, and `isActive` filters. |
+| GET    | `/students/:id`        | Gets a student by id.                                                           |
+| POST   | `/students`            | Registers a student.                                                            |
+| PATCH  | `/students/:id`        | Partially updates a student.                                                    |
+| PATCH  | `/students/:id/status` | Changes only the active status.                                                 |
+| DELETE | `/students/:id`        | Deletes an active student.                                                      |
+
+Example body for `POST /students`:
+
+```json
+{
+  "name": "Ana Pérez",
+  "email": "ana@example.com",
+  "age": 20,
+  "career": "Software Engineering",
+  "semester": 4,
+  "isActive": true
+}
+```
+
+`semester` must be an integer from 1 through 10. Email addresses are unique, ids
+must be positive integers, and inactive students cannot be deleted. Invalid data
+responds with `400`, unknown students with `404`, and business-rule conflicts with
+`409`.
+
 ## Project setup
 
 ```bash
