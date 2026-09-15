@@ -25,6 +25,37 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Course endpoints
+
+CourseHub API exposes an in-memory `courses` resource. Data returns to its initial
+state whenever the server restarts.
+
+| Method | Endpoint                  | Description                      |
+| ------ | ------------------------- | -------------------------------- |
+| GET    | `/courses`                | Lists all courses.               |
+| GET    | `/courses?level=beginner` | Lists courses filtered by level. |
+| GET    | `/courses/:id`            | Gets a course by id.             |
+| POST   | `/courses`                | Creates a course.                |
+| PATCH  | `/courses/:id`            | Partially updates a course.      |
+| DELETE | `/courses/:id`            | Deletes a course.                |
+
+Example request body for `POST /courses`:
+
+```json
+{
+  "title": "Testing NestJS",
+  "level": "intermediate"
+}
+```
+
+For `PATCH /courses/:id`, send only the fields to change:
+
+```json
+{
+  "title": "Testing APIs with NestJS"
+}
+```
+
 ## Project setup
 
 ```bash

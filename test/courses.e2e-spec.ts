@@ -41,6 +41,45 @@ describe('Courses endpoints (e2e)', () => {
       .expect([{ id: 3, title: 'NestJS Architecture', level: 'intermediate' }]);
   });
 
+  it('creates, updates, and removes a course', async () => {
+    const createdCourse = {
+      id: 4,
+      title: 'Testing NestJS',
+      level: 'intermediate',
+    };
+
+    await request(app.getHttpServer())
+      .post('/courses')
+      .send({ title: createdCourse.title, level: createdCourse.level })
+      .expect(201)
+      .expect(createdCourse);
+
+    await request(app.getHttpServer())
+      .get('/courses/4')
+      .expect(200)
+      .expect(createdCourse);
+
+    await request(app.getHttpServer())
+      .patch('/courses/4')
+      .send({ title: 'Testing APIs with NestJS' })
+      .expect(200)
+      .expect({ ...createdCourse, title: 'Testing APIs with NestJS' });
+
+    await request(app.getHttpServer())
+      .delete('/courses/4')
+      .expect(200)
+      .expect({ ...createdCourse, title: 'Testing APIs with NestJS' });
+
+    await request(app.getHttpServer())
+      .get('/courses')
+      .expect(200)
+      .expect([
+        { id: 1, title: 'NestJS Fundamentals', level: 'beginner' },
+        { id: 2, title: 'REST APIs with NestJS', level: 'beginner' },
+        { id: 3, title: 'NestJS Architecture', level: 'intermediate' },
+      ]);
+  });
+
   afterEach(async () => {
     await app.close();
   });
