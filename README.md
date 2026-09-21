@@ -94,6 +94,40 @@ must be positive integers, and inactive students cannot be deleted. Invalid data
 responds with `400`, unknown students with `404`, and business-rule conflicts with
 `409`.
 
+## Enrollment endpoints
+
+Enrollments connect an active student to an existing course and are kept in memory.
+
+| Method | Endpoint                           | Description                                                            |
+| ------ | ---------------------------------- | ---------------------------------------------------------------------- |
+| POST   | `/enrollments`                     | Registers an enrollment.                                               |
+| GET    | `/enrollments`                     | Lists enrollments; filters `studentId` and `courseId` can be combined. |
+| GET    | `/students/:studentId/enrollments` | Lists enrollments for an existing student.                             |
+| GET    | `/courses/:courseId/enrollments`   | Lists enrollments for an existing course.                              |
+| DELETE | `/enrollments/:id`                 | Cancels an enrollment.                                                 |
+
+Example request and successful response for `POST /enrollments`:
+
+```json
+{
+  "studentId": 1,
+  "courseId": 1
+}
+```
+
+```json
+{
+  "id": 1,
+  "studentId": 1,
+  "courseId": 1
+}
+```
+
+The endpoint responds with `409 Conflict` for a duplicate enrollment or an inactive
+student, `404 Not Found` when the student or course does not exist, and `400 Bad
+Request` for invalid identifiers or request data. To filter, use for example:
+`GET /enrollments?studentId=1&courseId=1`.
+
 ## Project setup
 
 ```bash
