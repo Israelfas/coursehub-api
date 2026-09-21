@@ -25,21 +25,21 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-## Course endpoints
+## Endpoints de cursos
 
-CourseHub API exposes an in-memory `courses` resource. Data returns to its initial
-state whenever the server restarts.
+CourseHub API expone el recurso `courses` en memoria. Los datos vuelven a su estado
+inicial cuando se reinicia el servidor.
 
-| Method | Endpoint                  | Description                                                         |
-| ------ | ------------------------- | ------------------------------------------------------------------- |
-| GET    | `/courses`                | Lists all courses.                                                  |
-| GET    | `/courses?level=beginner` | Lists courses filtered by level.                                    |
-| GET    | `/courses/:id`            | Gets a course by id; 404 if absent.                                 |
-| POST   | `/courses`                | Creates a course.                                                   |
-| PATCH  | `/courses/:id`            | Partially updates a course; 400 for invalid data and 404 if absent. |
-| DELETE | `/courses/:id`            | Deletes a course; 404 if absent.                                    |
+| Método | Endpoint                  | Descripción                                                          |
+| ------ | ------------------------- | -------------------------------------------------------------------- |
+| GET    | `/courses`                | Lista todos los cursos.                                              |
+| GET    | `/courses?level=beginner` | Lista cursos filtrados por nivel.                                    |
+| GET    | `/courses/:id`            | Consulta un curso por id; responde 404 si no existe.                 |
+| POST   | `/courses`                | Crea un curso.                                                       |
+| PATCH  | `/courses/:id`            | Actualiza parte de un curso; 400 por datos inválidos y 404 si falta. |
+| DELETE | `/courses/:id`            | Elimina un curso; responde 404 si no existe.                         |
 
-Example request body for `POST /courses`:
+Ejemplo de body para `POST /courses`:
 
 ```json
 {
@@ -48,11 +48,11 @@ Example request body for `POST /courses`:
 }
 ```
 
-`POST /courses` responds with `201 Created` for that valid body. It responds with
-`400 Bad Request` when `title` is empty or when `level` is not one of `beginner`,
-`intermediate`, or `advanced`. Additional fields are rejected as well.
+`POST /courses` responde `201 Created` con ese body válido. Responde `400 Bad
+Request` si `title` está vacío, si `level` no es `beginner`, `intermediate` o
+`advanced`, o si se envían campos adicionales.
 
-For `PATCH /courses/:id`, send only the fields to change:
+En `PATCH /courses/:id` se envían únicamente los campos que se desean cambiar:
 
 ```json
 {
@@ -60,23 +60,23 @@ For `PATCH /courses/:id`, send only the fields to change:
 }
 ```
 
-The same validation rules used for creation apply to supplied PATCH fields. For
-example, `level` must be `beginner`, `intermediate`, or `advanced`.
+Las reglas de validación de creación se aplican también a los campos enviados en
+PATCH. Por ejemplo, `level` debe ser `beginner`, `intermediate` o `advanced`.
 
-## Student endpoints
+## Endpoints de estudiantes
 
-The `students` resource is also stored in memory while the server runs.
+El recurso `students` también se mantiene en memoria mientras el servidor está activo.
 
-| Method | Endpoint               | Description                                                                     |
+| Método | Endpoint               | Descripción                                                                     |
 | ------ | ---------------------- | ------------------------------------------------------------------------------- |
-| GET    | `/students`            | Lists students; supports combined `career`, `semester`, and `isActive` filters. |
-| GET    | `/students/:id`        | Gets a student by id.                                                           |
-| POST   | `/students`            | Registers a student.                                                            |
-| PATCH  | `/students/:id`        | Partially updates a student.                                                    |
-| PATCH  | `/students/:id/status` | Changes only the active status.                                                 |
-| DELETE | `/students/:id`        | Deletes an active student.                                                      |
+| GET    | `/students`            | Lista estudiantes; admite filtros combinados `career`, `semester` e `isActive`. |
+| GET    | `/students/:id`        | Consulta un estudiante por id.                                                  |
+| POST   | `/students`            | Registra un estudiante.                                                         |
+| PATCH  | `/students/:id`        | Actualiza parcialmente un estudiante.                                           |
+| PATCH  | `/students/:id/status` | Cambia únicamente el estado activo.                                             |
+| DELETE | `/students/:id`        | Elimina un estudiante activo.                                                   |
 
-Example body for `POST /students`:
+Ejemplo de body para `POST /students`:
 
 ```json
 {
@@ -89,10 +89,45 @@ Example body for `POST /students`:
 }
 ```
 
-`semester` must be an integer from 1 through 10. Email addresses are unique, ids
-must be positive integers, and inactive students cannot be deleted. Invalid data
-responds with `400`, unknown students with `404`, and business-rule conflicts with
-`409`.
+`semester` debe ser un entero entre 1 y 10. Los correos son únicos, los ids deben
+ser enteros positivos y no se puede eliminar a un estudiante inactivo. Los datos
+inválidos responden `400`, los estudiantes inexistentes `404` y los conflictos de
+reglas de negocio `409`.
+
+## Endpoints de matrículas
+
+Las matrículas relacionan un estudiante activo con un curso existente y se mantienen
+en memoria.
+
+| Método | Endpoint                           | Descripción                                                 |
+| ------ | ---------------------------------- | ----------------------------------------------------------- |
+| POST   | `/enrollments`                     | Registra una matrícula.                                     |
+| GET    | `/enrollments`                     | Lista matrículas; combina filtros `studentId` y `courseId`. |
+| GET    | `/students/:studentId/enrollments` | Lista las matrículas de un estudiante existente.            |
+| GET    | `/courses/:courseId/enrollments`   | Lista las matrículas de un curso existente.                 |
+| DELETE | `/enrollments/:id`                 | Cancela una matrícula.                                      |
+
+Ejemplo de request y respuesta exitosa para `POST /enrollments`:
+
+```json
+{
+  "studentId": 1,
+  "courseId": 1
+}
+```
+
+```json
+{
+  "id": 1,
+  "studentId": 1,
+  "courseId": 1
+}
+```
+
+El endpoint responde `409 Conflict` para una matrícula duplicada o un estudiante
+inactivo, `404 Not Found` si el estudiante o curso no existe, y `400 Bad Request`
+para identificadores o datos inválidos. Ejemplo de filtro:
+`GET /enrollments?studentId=1&courseId=1`.
 
 ## Project setup
 
