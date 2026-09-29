@@ -39,7 +39,7 @@ export class StudentsService {
     const student = this.students.find((item) => item.id === id);
 
     if (!student) {
-      throw new NotFoundException(`Student with id ${id} not found`);
+      throw new NotFoundException(`Estudiante con id ${id} no encontrado`);
     }
 
     return student;
@@ -80,7 +80,9 @@ export class StudentsService {
     const student = this.findOne(id);
 
     if (!student.isActive) {
-      throw new ConflictException('Inactive students cannot be deleted');
+      throw new ConflictException(
+        'No se puede eliminar un estudiante inactivo',
+      );
     }
 
     this.students.splice(this.students.indexOf(student), 1);
@@ -93,7 +95,7 @@ export class StudentsService {
     );
 
     if (studentWithEmail) {
-      throw new ConflictException('A student with this email already exists');
+      throw new ConflictException('Ya existe un estudiante con este correo');
     }
   }
 }

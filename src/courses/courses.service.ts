@@ -30,7 +30,7 @@ export class CoursesService {
     const course = this.courses.find((course) => course.id === id);
 
     if (!course) {
-      throw new NotFoundException(`Course with id ${id} not found`);
+      throw new NotFoundException(`Curso con id ${id} no encontrado`);
     }
 
     return course;

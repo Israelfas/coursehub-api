@@ -50,7 +50,9 @@ export class EnrollmentsService {
     this.coursesService.findOne(createEnrollmentDto.courseId);
 
     if (!student.isActive) {
-      throw new ConflictException('Inactive students cannot be enrolled');
+      throw new ConflictException(
+        'Un estudiante inactivo no puede matricularse',
+      );
     }
 
     const duplicateEnrollment = this.enrollments.find(
@@ -60,7 +62,9 @@ export class EnrollmentsService {
     );
 
     if (duplicateEnrollment) {
-      throw new ConflictException('Student is already enrolled in this course');
+      throw new ConflictException(
+        'El estudiante ya está matriculado en este curso',
+      );
     }
 
     const enrollment: Enrollment = {
@@ -77,7 +81,7 @@ export class EnrollmentsService {
     );
 
     if (index === -1) {
-      throw new NotFoundException(`Enrollment with id ${id} not found`);
+      throw new NotFoundException(`Matrícula con id ${id} no encontrada`);
     }
 
     const [enrollment] = this.enrollments.splice(index, 1);
