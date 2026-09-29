@@ -40,14 +40,14 @@ export class EnrollmentsService {
     return this.findAll({ studentId });
   }
 
-  findByCourse(courseId: number): Enrollment[] {
-    this.coursesService.findOne(courseId);
+  async findByCourse(courseId: number): Promise<Enrollment[]> {
+    await this.coursesService.findOne(courseId);
     return this.findAll({ courseId });
   }
 
-  create(createEnrollmentDto: CreateEnrollmentDto): Enrollment {
+  async create(createEnrollmentDto: CreateEnrollmentDto): Promise<Enrollment> {
     const student = this.studentsService.findOne(createEnrollmentDto.studentId);
-    this.coursesService.findOne(createEnrollmentDto.courseId);
+    await this.coursesService.findOne(createEnrollmentDto.courseId);
 
     if (!student.isActive) {
       throw new ConflictException(
