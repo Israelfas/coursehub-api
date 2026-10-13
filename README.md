@@ -71,8 +71,13 @@ Los tres recursos se guardan en PostgreSQL mediante TypeORM.
 | `enrollments` | `Enrollment` | Claves foráneas a `students` y `courses`; la pareja `studentId` + `courseId` es única. |
 
 Las matrículas usan relaciones reales: `enrollments.studentId` y
-`enrollments.courseId` son claves foráneas con `ON DELETE CASCADE`, por lo que
-al eliminar un estudiante o un curso desaparecen sus matrículas.
+`enrollments.courseId` son claves foráneas con `ON DELETE RESTRICT`. Esto
+significa que **un curso o un estudiante con matrículas no se puede eliminar**:
+la API responde `409` y pide cancelar primero las matrículas.
+
+Se eligió `RESTRICT` y no `CASCADE` a propósito. Con `CASCADE`, borrar un curso
+haría desaparecer en silencio el historial de quiénes estaban inscritos en él.
+Perder datos debe ser una decisión explícita, no un efecto secundario.
 
 ## Códigos de respuesta
 
@@ -80,7 +85,7 @@ al eliminar un estudiante o un curso desaparecen sus matrículas.
 | ------ | --------------------------------------------------------------------------- |
 | `400`  | Datos inválidos en el body o la ruta, y matricular a un estudiante inactivo. |
 | `404`  | El curso, el estudiante o la matrícula no existen.                           |
-| `409`  | Correo de estudiante repetido, o matrícula duplicada.                        |
+| `409`  | Correo repetido, matrícula duplicada, o borrar un recurso con matrículas.      |
 
 El estudiante inactivo responde `400` y no `409` porque el recurso no está en
 conflicto: la petición es la que no es válida y el cliente debe corregirla.
@@ -98,11 +103,15 @@ pueden ver el correo libre antes de que ninguna haya guardado, y la que pierde l
 carrera choca contra la restricción de la base.
 
 Ese choque no debe salir como un `500` sin contexto. El filtro global
-[`UniqueViolationFilter`](src/common/filters/unique-violation.filter.ts) atrapa el
+[`DatabaseConstraintFilter`](src/common/filters/database-constraint.filter.ts) atrapa el
 `QueryFailedError` con código `23505` de PostgreSQL y lo convierte en el mismo
 `409` que habría devuelto el servicio. El filtro identifica la columna en
 conflicto leyendo el campo `detail` del error, no el nombre de la restricción,
 porque TypeORM genera esos nombres de forma automática.
+
+El mismo filtro traduce los códigos `23001` y `23503`, que PostgreSQL usa cuando
+una clave foránea impide una operación. Son dos códigos distintos: `23001` es el
+de `ON DELETE RESTRICT` y `23503` el de una fila referenciada que no existe.
 
 ## Endpoints de cursos
 

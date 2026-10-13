@@ -454,3 +454,196 @@ despues de esta prueba.
 ================================================================
  FIN DE LAS EVIDENCIAS DE LA SESION 9
 ================================================================
+
+================================================================
+ SESION 10 - MATRICULAS COMO RELACIONES PERSISTENTES
+================================================================
+
+Las tres tablas se vaciaron antes de empezar.
+
+Resumen
+-------
+A  Curso y estudiante persistentes ........................ 201
+B  Registrar la matricula .................................. 201
+C  Consultar con los datos relacionados .................... 200
+D  Pareja estudiante-curso repetida ........................ 409
+E  Estudiante inactivo en otro curso ....................... 400
+F  onDelete RESTRICT protege el vinculo .................... 409
+G  Reiniciar la API y cancelar la matricula ................ 200
+
+==============================================================
+ SESION 10 - A - Curso y estudiante persistentes
+==============================================================
+--- PETICION ---
+POST /courses
+Content-Type: application/json
+
+{"title":"Bases de datos relacionales","level":"intermediate"}
+--- RESPUESTA ---
+{"id":1,"title":"Bases de datos relacionales","level":"intermediate"}
+HTTP 201
+
+--- PETICION ---
+POST /courses
+Content-Type: application/json
+
+{"title":"Introduccion a NestJS","level":"beginner"}
+--- RESPUESTA ---
+{"id":2,"title":"Introduccion a NestJS","level":"beginner"}
+HTTP 201
+
+--- PETICION ---
+POST /students
+Content-Type: application/json
+
+{"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}
+--- RESPUESTA ---
+{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}
+HTTP 201
+
+==============================================================
+ SESION 10 - B - Registrar la matricula
+==============================================================
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":1,"courseId":1}
+--- RESPUESTA ---
+{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":4,"isActive":true},"course":{"id":1,"title":"Bases de datos relacionales","level":"intermediate"}}
+HTTP 201
+
+==============================================================
+ SESION 10 - C - Consultar con los datos relacionados
+==============================================================
+--- PETICION ---
+GET /enrollments?studentId=1
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":4,"isActive":true},"course":{"id":1,"title":"Bases de datos relacionales","level":"intermediate"}}]
+HTTP 200
+
+==============================================================
+ SESION 10 - D - Pareja repetida
+==============================================================
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":1,"courseId":1}
+--- RESPUESTA ---
+{"message":"El estudiante ya está matriculado en este curso","error":"Conflict","statusCode":409}
+HTTP 409
+
+==============================================================
+ SESION 10 - E - Estudiante inactivo en otro curso
+==============================================================
+--- PETICION ---
+PATCH /students/1/status
+Content-Type: application/json
+
+{"isActive":false}
+--- RESPUESTA ---
+{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":false}
+HTTP 200
+
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":1,"courseId":2}
+--- RESPUESTA ---
+{"message":"Un estudiante inactivo no puede matricularse","error":"Bad Request","statusCode":400}
+HTTP 400
+
+==============================================================
+ SESION 10 - F - onDelete RESTRICT protege el vinculo
+==============================================================
+Un curso con matriculas no se puede eliminar.
+
+NOTA: en la primera ejecucion este caso devolvio un 500 porque el
+filtro solo contemplaba el codigo 23503 de PostgreSQL. Una clave
+foranea con ON DELETE RESTRICT produce en realidad el codigo 23001.
+Tras corregir el filtro, la respuesta es la siguiente:
+
+--- PETICION ---
+DELETE /courses/1
+--- RESPUESTA ---
+{"message":"No se puede eliminar un recurso que todavia tiene matriculas","error":"Conflict","statusCode":409}
+HTTP 409
+
+Un curso sin matriculas si:
+--- PETICION ---
+DELETE /courses/2
+--- RESPUESTA ---
+{"title":"Introduccion a NestJS","level":"beginner"}
+HTTP 200
+
+Un curso con matriculas no se puede eliminar:
+--- PETICION ---
+DELETE /courses/1
+--- RESPUESTA ---
+{"message":"No se puede eliminar un recurso que todavía tiene matrículas","error":"Conflict","statusCode":409}
+HTTP 409
+
+Un estudiante con matriculas tampoco:
+--- PETICION ---
+PATCH /students/1/status
+Content-Type: application/json
+
+{"isActive":true}
+--- RESPUESTA ---
+{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}
+HTTP 200
+
+--- PETICION ---
+DELETE /students/1
+--- RESPUESTA ---
+{"message":"No se puede eliminar un recurso que todavía tiene matrículas","error":"Conflict","statusCode":409}
+HTTP 409
+
+==============================================================
+ SESION 10 - G - Reiniciar la API y cancelar la matricula
+==============================================================
+(La API fue detenida y vuelta a iniciar con npm run start)
+
+--- PETICION ---
+GET /enrollments
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":4,"isActive":true},"course":{"id":1,"title":"Bases de datos relacionales","level":"intermediate"}}]
+HTTP 200
+
+--- PETICION ---
+DELETE /enrollments/1
+--- RESPUESTA ---
+{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":4,"isActive":true},"course":{"id":1,"title":"Bases de datos relacionales","level":"intermediate"}}
+HTTP 200
+
+Cancelar solo elimina el vinculo: el estudiante y el curso siguen ahi.
+--- PETICION ---
+GET /students/1
+--- RESPUESTA ---
+{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}
+HTTP 200
+
+--- PETICION ---
+GET /courses/1
+--- RESPUESTA ---
+{"id":1,"title":"Bases de datos relacionales","level":"intermediate"}
+HTTP 200
+
+--- PETICION ---
+GET /enrollments
+--- RESPUESTA ---
+[]
+HTTP 200
+
+Y ahora que no tiene matriculas, el curso si se puede eliminar:
+--- PETICION ---
+DELETE /courses/1
+--- RESPUESTA ---
+{"title":"Bases de datos relacionales","level":"intermediate"}
+HTTP 200
+
+================================================================
+ FIN DE LAS EVIDENCIAS DE LA SESION 10
+================================================================

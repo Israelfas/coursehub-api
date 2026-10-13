@@ -24,14 +24,14 @@ export class Enrollment {
 
   @ManyToOne('Student', 'enrollments', {
     nullable: false,
-    onDelete: 'CASCADE',
+    onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'studentId' })
   student: Relation<Student>;
 
   @ManyToOne('Course', 'enrollments', {
     nullable: false,
-    onDelete: 'CASCADE',
+    onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'courseId' })
   course: Relation<Course>;
