@@ -1,42 +1,71 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  FindOptionsRelations,
+  FindOptionsSelect,
+  FindOptionsWhere,
+  Repository,
+} from 'typeorm';
 import { CoursesService } from '../courses/courses.service.js';
 import { StudentsService } from '../students/students.service.js';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto.js';
 import { EnrollmentsQueryDto } from './dto/enrollments-query.dto.js';
-
-type Enrollment = {
-  id: number;
-  studentId: number;
-  courseId: number;
-};
+import { Enrollment } from './entities/enrollment.entity.js';
 
 @Injectable()
 export class EnrollmentsService {
-  private readonly enrollments: Enrollment[] = [];
-  private nextId = 1;
+  private readonly relations: FindOptionsRelations<Enrollment> = {
+    student: true,
+    course: true,
+  };
+
+  private readonly select: FindOptionsSelect<Enrollment> = {
+    id: true,
+    studentId: true,
+    courseId: true,
+    student: {
+      id: true,
+      name: true,
+      career: true,
+      semester: true,
+      isActive: true,
+    },
+    course: { id: true, title: true, level: true },
+  };
 
   constructor(
+    @InjectRepository(Enrollment)
+    private readonly enrollments: Repository<Enrollment>,
     private readonly studentsService: StudentsService,
     private readonly coursesService: CoursesService,
   ) {}
 
-  findAll(filters: EnrollmentsQueryDto): Enrollment[] {
-    return this.enrollments.filter((enrollment) => {
-      return (
-        (filters.studentId === undefined ||
-          enrollment.studentId === filters.studentId) &&
-        (filters.courseId === undefined ||
-          enrollment.courseId === filters.courseId)
-      );
+  findAll(filters: EnrollmentsQueryDto): Promise<Enrollment[]> {
+    const where: FindOptionsWhere<Enrollment> = {};
+
+    if (filters.studentId !== undefined) {
+      where.studentId = filters.studentId;
+    }
+
+    if (filters.courseId !== undefined) {
+      where.courseId = filters.courseId;
+    }
+
+    return this.enrollments.find({
+      where,
+      relations: this.relations,
+      select: this.select,
+      order: { id: 'ASC' },
     });
   }
 
-  findByStudent(studentId: number): Enrollment[] {
-    this.studentsService.findOne(studentId);
+  async findByStudent(studentId: number): Promise<Enrollment[]> {
+    await this.studentsService.findOne(studentId);
     return this.findAll({ studentId });
   }
 
@@ -45,21 +74,24 @@ export class EnrollmentsService {
     return this.findAll({ courseId });
   }
 
-  async create(createEnrollmentDto: CreateEnrollmentDto): Promise<Enrollment> {
-    const student = this.studentsService.findOne(createEnrollmentDto.studentId);
-    await this.coursesService.findOne(createEnrollmentDto.courseId);
+  async create(
+    createEnrollmentDto: CreateEnrollmentDto,
+  ): Promise<Enrollment | null> {
+    const { studentId, courseId } = createEnrollmentDto;
+    const student = await this.studentsService.findOne(studentId);
+
+    await this.coursesService.findOne(courseId);
 
     if (!student.isActive) {
-      throw new ConflictException(
+      throw new BadRequestException(
         'Un estudiante inactivo no puede matricularse',
       );
     }
 
-    const duplicateEnrollment = this.enrollments.find(
-      (enrollment) =>
-        enrollment.studentId === createEnrollmentDto.studentId &&
-        enrollment.courseId === createEnrollmentDto.courseId,
-    );
+    const duplicateEnrollment = await this.enrollments.findOneBy({
+      studentId,
+      courseId,
+    });
 
     if (duplicateEnrollment) {
       throw new ConflictException(
@@ -67,24 +99,31 @@ export class EnrollmentsService {
       );
     }
 
-    const enrollment: Enrollment = {
-      id: this.nextId++,
-      ...createEnrollmentDto,
-    };
-    this.enrollments.push(enrollment);
-    return enrollment;
-  }
-
-  remove(id: number): Enrollment {
-    const index = this.enrollments.findIndex(
-      (enrollment) => enrollment.id === id,
+    const enrollment = await this.enrollments.save(
+      this.enrollments.create({ studentId, courseId }),
     );
 
-    if (index === -1) {
+    return this.enrollments.findOne({
+      where: { id: enrollment.id },
+      relations: this.relations,
+      select: this.select,
+    });
+  }
+
+  async remove(id: number): Promise<Enrollment> {
+    const enrollment = await this.enrollments.findOne({
+      where: { id },
+      relations: this.relations,
+      select: this.select,
+    });
+
+    if (!enrollment) {
       throw new NotFoundException(`Matrícula con id ${id} no encontrada`);
     }
 
-    const [enrollment] = this.enrollments.splice(index, 1);
-    return enrollment;
+    const cancelled = { ...enrollment };
+
+    await this.enrollments.remove(enrollment);
+    return cancelled;
   }
 }

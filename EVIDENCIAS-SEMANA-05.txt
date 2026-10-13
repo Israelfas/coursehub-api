@@ -1,0 +1,267 @@
+================================================================
+ COURSEHUB API - EVIDENCIAS DEL PROYECTO INTEGRADOR SEMANA 5
+ Estudiantes y matriculas persistentes en PostgreSQL
+================================================================
+
+Entorno de la demostracion
+--------------------------
+API            NestJS sobre http://localhost:3000
+Base de datos  PostgreSQL 18, base "coursehub"
+Tablas         courses, students, enrollments
+Herramienta    curl (se transcriben peticion y respuesta completas)
+
+Todas las tablas se vaciaron antes de empezar, por eso los
+identificadores comienzan en 1.
+
+Codigos HTTP elegidos y su justificacion
+----------------------------------------
+201  Creacion correcta de curso, estudiante o matricula.
+200  Consulta o cancelacion correcta.
+400  El estudiante existe pero esta inactivo. Es un dato invalido
+     enviado por el cliente, no un conflicto con el estado del
+     recurso: el cliente debe corregir la peticion.
+404  El estudiante o el curso referenciado no existe, o la
+     matricula que se intenta cancelar ya no esta.
+409  Conflicto con el estado actual de los datos: la pareja
+     estudiante-curso ya existe, o el correo ya esta registrado.
+
+Resumen de los casos demostrados
+--------------------------------
+CASO 1  Crear un curso y un estudiante activo .............. 201
+CASO 2  Crear una matricula valida ......................... 201
+CASO 3  Reiniciar la API y consultar la misma matricula .... 200
+CASO 4  Matricula duplicada ................................ 409
+CASO 5  Matricular a un estudiante inactivo ................ 400
+CASO 6  Filtrar matriculas por estudiante o por curso ...... 200
+CASO 7  Cancelar la matricula y comprobar que no esta ...... 200 y 404
+ANEXO A Correo de estudiante duplicado ..................... 409
+ANEXO B Estudiante o curso inexistente ..................... 404
+ANEXO C Estructura relacional creada en PostgreSQL
+
+==============================================================
+ CASO 1 - Crear un curso y un estudiante activo
+==============================================================
+--- PETICION ---
+POST /courses
+Content-Type: application/json
+
+{"title":"NestJS con PostgreSQL","level":"intermediate"}
+--- RESPUESTA ---
+{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}
+HTTP 201
+
+--- PETICION ---
+POST /courses
+Content-Type: application/json
+
+{"title":"Fundamentos de TypeScript","level":"beginner"}
+--- RESPUESTA ---
+{"id":2,"title":"Fundamentos de TypeScript","level":"beginner"}
+HTTP 201
+
+--- PETICION ---
+POST /students
+Content-Type: application/json
+
+{"name":"Ana Perez","email":"ana@example.com","age":20,"career":"Software Engineering","semester":4,"isActive":true}
+--- RESPUESTA ---
+{"id":1,"name":"Ana Perez","email":"ana@example.com","age":20,"career":"Software Engineering","semester":4,"isActive":true}
+HTTP 201
+
+==============================================================
+ CASO 2 - Crear una matricula valida
+==============================================================
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":1,"courseId":1}
+--- RESPUESTA ---
+{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":true},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}
+HTTP 201
+
+==============================================================
+ CASO 3 - Reiniciar la API y consultar la misma matricula
+==============================================================
+(La API fue detenida con Ctrl+C y vuelta a iniciar con npm run start)
+
+--- PETICION ---
+GET /enrollments/
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":true},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}]
+HTTP 200
+
+--- PETICION ---
+GET /students/1/enrollments
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":true},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}]
+HTTP 200
+
+El estudiante id 1 tambien sobrevivio al reinicio:
+--- PETICION ---
+GET /students/1
+--- RESPUESTA ---
+{"id":1,"name":"Ana Perez","email":"ana@example.com","age":20,"career":"Software Engineering","semester":4,"isActive":true}
+HTTP 200
+
+==============================================================
+ CASO 4 - Matricula duplicada (409 Conflict)
+==============================================================
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":1,"courseId":1}
+--- RESPUESTA ---
+{"message":"El estudiante ya está matriculado en este curso","error":"Conflict","statusCode":409}
+HTTP 409
+
+==============================================================
+ CASO 5 - Matricular a un estudiante inactivo (400 Bad Request)
+==============================================================
+Primero se desactiva al estudiante:
+--- PETICION ---
+PATCH /students/1/status
+Content-Type: application/json
+
+{"isActive":false}
+--- RESPUESTA ---
+{"id":1,"name":"Ana Perez","email":"ana@example.com","age":20,"career":"Software Engineering","semester":4,"isActive":false}
+HTTP 200
+
+Y se intenta matricularlo en el curso 2:
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":1,"courseId":2}
+--- RESPUESTA ---
+{"message":"Un estudiante inactivo no puede matricularse","error":"Bad Request","statusCode":400}
+HTTP 400
+
+==============================================================
+ CASO 6 - Filtrar las matriculas por estudiante o por curso
+==============================================================
+--- PETICION ---
+GET /enrollments?studentId=1
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":false},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}]
+HTTP 200
+
+--- PETICION ---
+GET /enrollments?courseId=1
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":false},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}]
+HTTP 200
+
+--- PETICION ---
+GET /enrollments?studentId=1&courseId=1
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":false},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}]
+HTTP 200
+
+Filtro que no coincide con ninguna matricula:
+--- PETICION ---
+GET /enrollments?courseId=2
+--- RESPUESTA ---
+[]
+HTTP 200
+
+Rutas anidadas equivalentes:
+--- PETICION ---
+GET /courses/1/enrollments
+--- RESPUESTA ---
+[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":false},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}]
+HTTP 200
+
+==============================================================
+ CASO 7 - Cancelar la matricula y comprobar que ya no se encuentra
+==============================================================
+--- PETICION ---
+DELETE /enrollments/1
+--- RESPUESTA ---
+{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Perez","career":"Software Engineering","semester":4,"isActive":false},"course":{"id":1,"title":"NestJS con PostgreSQL","level":"intermediate"}}
+HTTP 200
+
+La lista queda vacia:
+--- PETICION ---
+GET /enrollments
+--- RESPUESTA ---
+[]
+HTTP 200
+
+Tampoco aparece en las rutas anidadas:
+--- PETICION ---
+GET /students/1/enrollments
+--- RESPUESTA ---
+[]
+HTTP 200
+
+Y cancelarla de nuevo responde 404:
+--- PETICION ---
+DELETE /enrollments/1
+--- RESPUESTA ---
+{"message":"Matrícula con id 1 no encontrada","error":"Not Found","statusCode":404}
+HTTP 404
+
+==============================================================
+ ANEXO A - Correo unico (validado en el servicio y en la base)
+==============================================================
+--- PETICION ---
+POST /students
+Content-Type: application/json
+
+{"name":"Otro Estudiante","email":"ana@example.com","age":22,"career":"Software Engineering","semester":5,"isActive":true}
+--- RESPUESTA ---
+{"message":"Ya existe un estudiante con este correo","error":"Conflict","statusCode":409}
+HTTP 409
+
+==============================================================
+ ANEXO B - Recursos inexistentes (404)
+==============================================================
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":999,"courseId":1}
+--- RESPUESTA ---
+{"message":"Estudiante con id 999 no encontrado","error":"Not Found","statusCode":404}
+HTTP 404
+
+--- PETICION ---
+POST /enrollments
+Content-Type: application/json
+
+{"studentId":1,"courseId":999}
+--- RESPUESTA ---
+{"message":"Curso con id 999 no encontrado","error":"Not Found","statusCode":404}
+HTTP 404
+
+==============================================================
+ ANEXO C - Estructura relacional creada en PostgreSQL
+==============================================================
+Salida de \d enrollments en psql. Demuestra que las matriculas
+usan claves foraneas reales hacia students y courses, y no
+numeros sueltos, y que la pareja estudiante-curso tiene una
+restriccion unica en la propia base de datos.
+
+                            Tabla «public.enrollments»
+  Columna  |  Tipo   | Ordenamiento | Nulable  |                Por omisi                
+-----------+---------+--------------+----------+-----------------------------------------
+ id        | integer |              | not null | nextval('enrollments_id_seq'::regclass)
+ studentId | integer |              | not null | 
+ courseId  | integer |              | not null | 
+Índices:
+    "PK_7c0f752f9fb68bf6ed7367ab00f" PRIMARY KEY, btree (id)
+    "UQ_enrollment_student_course" UNIQUE CONSTRAINT, btree ("studentId", "courseId")
+Restricciones de llave foránea:
+    "FK_60dd0ae4e21002e63a5fdefeec8" FOREIGN KEY ("courseId") REFERENCES courses(id) ON DELETE CASCADE
+    "FK_bf3ba3dfa95e2df7388eb4589fd" FOREIGN KEY ("studentId") REFERENCES students(id) ON DELETE CASCADE
+
+La tabla students tiene ademas una restriccion UNIQUE sobre la
+columna email, de modo que el correo unico se garantiza tanto en
+el servicio como en PostgreSQL.
+
+================================================================
+ FIN DE LAS EVIDENCIAS
+================================================================

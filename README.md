@@ -62,11 +62,28 @@ en producción se usan migraciones.
 
 ## Persistencia
 
-| Recurso       | Almacenamiento        | Sobrevive al reinicio |
-| ------------- | --------------------- | --------------------- |
-| `courses`     | PostgreSQL con TypeORM | Sí                    |
-| `students`    | Lista en memoria       | No                    |
-| `enrollments` | Lista en memoria       | No                    |
+Los tres recursos se guardan en PostgreSQL mediante TypeORM.
+
+| Tabla         | Entidad      | Restricciones                                        |
+| ------------- | ------------ | ---------------------------------------------------- |
+| `courses`     | `Course`     | Clave primaria autogenerada.                         |
+| `students`    | `Student`    | `email` único.                                       |
+| `enrollments` | `Enrollment` | Claves foráneas a `students` y `courses`; la pareja `studentId` + `courseId` es única. |
+
+Las matrículas usan relaciones reales: `enrollments.studentId` y
+`enrollments.courseId` son claves foráneas con `ON DELETE CASCADE`, por lo que
+al eliminar un estudiante o un curso desaparecen sus matrículas.
+
+## Códigos de respuesta
+
+| Código | Cuándo se usa                                                              |
+| ------ | --------------------------------------------------------------------------- |
+| `400`  | Datos inválidos en el body o la ruta, y matricular a un estudiante inactivo. |
+| `404`  | El curso, el estudiante o la matrícula no existen.                           |
+| `409`  | Correo de estudiante repetido, o matrícula duplicada.                        |
+
+El estudiante inactivo responde `400` y no `409` porque el recurso no está en
+conflicto: la petición es la que no es válida y el cliente debe corregirla.
 
 ## Endpoints de cursos
 
@@ -108,7 +125,7 @@ PATCH. Por ejemplo, `level` debe ser `beginner`, `intermediate` o `advanced`.
 
 ## Endpoints de estudiantes
 
-El recurso `students` también se mantiene en memoria mientras el servidor está activo.
+El recurso `students` se guarda en la tabla `students` de PostgreSQL.
 
 | Método | Endpoint               | Descripción                                                                     |
 | ------ | ---------------------- | ------------------------------------------------------------------------------- |
@@ -139,8 +156,9 @@ reglas de negocio `409`.
 
 ## Endpoints de matrículas
 
-Las matrículas relacionan un estudiante activo con un curso existente y se mantienen
-en memoria.
+Las matrículas relacionan un estudiante activo con un curso existente mediante
+claves foráneas. Las consultas devuelven también los datos públicos del estudiante
+y del curso, sin exponer el correo.
 
 | Método | Endpoint                           | Descripción                                                 |
 | ------ | ---------------------------------- | ----------------------------------------------------------- |
@@ -163,14 +181,25 @@ Ejemplo de request y respuesta exitosa para `POST /enrollments`:
 {
   "id": 1,
   "studentId": 1,
-  "courseId": 1
+  "courseId": 1,
+  "student": {
+    "id": 1,
+    "name": "Ana Pérez",
+    "career": "Software Engineering",
+    "semester": 4,
+    "isActive": true
+  },
+  "course": {
+    "id": 1,
+    "title": "NestJS con PostgreSQL",
+    "level": "intermediate"
+  }
 }
 ```
 
-El endpoint responde `409 Conflict` para una matrícula duplicada o un estudiante
-inactivo, `404 Not Found` si el estudiante o curso no existe, y `400 Bad Request`
-para identificadores o datos inválidos. Ejemplo de filtro:
-`GET /enrollments?studentId=1&courseId=1`.
+El endpoint responde `409 Conflict` para una matrícula duplicada, `400 Bad Request`
+para un estudiante inactivo o datos inválidos, y `404 Not Found` si el estudiante o
+el curso no existen. Ejemplo de filtro: `GET /enrollments?studentId=1&courseId=1`.
 
 ## Project setup
 
