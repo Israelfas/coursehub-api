@@ -23,12 +23,55 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+CourseHub API es una API REST construida con NestJS que gestiona cursos,
+estudiantes y matrículas.
+
+## Requisitos
+
+- Node.js 20 o superior.
+- PostgreSQL 14 o superior en ejecución local.
+- Una base de datos vacía llamada `coursehub`:
+
+```bash
+createdb coursehub
+```
+
+## Variables de entorno
+
+La configuración vive fuera del código. Copie `.env.example` como `.env` y
+complete los valores de su instalación local:
+
+```bash
+cp .env.example .env
+```
+
+| Variable            | Descripción                        | Ejemplo     |
+| ------------------- | ---------------------------------- | ----------- |
+| `DATABASE_HOST`     | Host de PostgreSQL                 | `localhost` |
+| `DATABASE_PORT`     | Puerto de PostgreSQL               | `5432`      |
+| `DATABASE_NAME`     | Nombre de la base de datos         | `coursehub` |
+| `DATABASE_USER`     | Usuario de PostgreSQL              | `postgres`  |
+| `DATABASE_PASSWORD` | Contraseña del usuario             | -           |
+
+`.env` está excluido del repositorio y nunca debe publicarse. Si falta una
+clave, la aplicación se detiene al arrancar con un error que indica cuál es.
+
+La conexión usa `synchronize: true`, por lo que TypeORM crea la tabla `courses`
+automáticamente en el primer arranque. Esta opción es útil solo en desarrollo;
+en producción se usan migraciones.
+
+## Persistencia
+
+| Recurso       | Almacenamiento        | Sobrevive al reinicio |
+| ------------- | --------------------- | --------------------- |
+| `courses`     | PostgreSQL con TypeORM | Sí                    |
+| `students`    | Lista en memoria       | No                    |
+| `enrollments` | Lista en memoria       | No                    |
 
 ## Endpoints de cursos
 
-CourseHub API expone el recurso `courses` en memoria. Los datos vuelven a su estado
-inicial cuando se reinicia el servidor.
+El recurso `courses` se guarda en la tabla `courses` de PostgreSQL. Los ids los
+genera la base de datos y no se reutilizan después de eliminar un registro.
 
 | Método | Endpoint                  | Descripción                                                          |
 | ------ | ------------------------- | -------------------------------------------------------------------- |
@@ -134,6 +177,9 @@ para identificadores o datos inválidos. Ejemplo de filtro:
 ```bash
 $ npm install
 ```
+
+Antes del primer arranque cree la base `coursehub` y su archivo `.env` como se
+indica en Requisitos y Variables de entorno.
 
 ## Compile and run the project
 
