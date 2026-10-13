@@ -13,13 +13,13 @@ export class Student {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ type: 'int' })
   age: number;
 
   @Column()
   career: string;
 
-  @Column()
+  @Column({ type: 'int' })
   semester: number;
 
   @Column({ default: true })

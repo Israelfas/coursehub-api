@@ -265,3 +265,192 @@ el servicio como en PostgreSQL.
 ================================================================
  FIN DE LAS EVIDENCIAS
 ================================================================
+
+================================================================
+ SESION 9 - ESTUDIANTES PERSISTENTES CON TYPEORM
+================================================================
+
+La tabla students se vacio antes de empezar, por eso los
+identificadores vuelven a comenzar en 1.
+
+Resumen
+-------
+A  Crear estudiantes ...................................... 201
+B  Filtros individuales y combinados ...................... 200
+C  Actualizar un estudiante ............................... 200
+D  Reiniciar la API y consultar ........................... 200
+E  Correo repetido, detectado por el servicio ............. 409
+F  No se elimina un estudiante inactivo ................... 409
+G  Correo repetido, detectado por PostgreSQL .............. 409
+
+==============================================================
+ SESION 9 - A - Crear estudiantes
+==============================================================
+--- PETICION ---
+POST /students
+Content-Type: application/json
+
+{"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}
+--- RESPUESTA ---
+{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}
+HTTP 201
+
+--- PETICION ---
+POST /students
+Content-Type: application/json
+
+{"name":"Luis Mora","email":"luis.mora@example.edu","age":23,"career":"Redes","semester":7,"isActive":true}
+--- RESPUESTA ---
+{"id":2,"name":"Luis Mora","email":"luis.mora@example.edu","age":23,"career":"Redes","semester":7,"isActive":true}
+HTTP 201
+
+==============================================================
+ SESION 9 - B - Filtros individuales y combinados
+==============================================================
+--- PETICION ---
+GET /students?career=Software
+--- RESPUESTA ---
+[{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}]
+HTTP 200
+
+--- PETICION ---
+GET /students?career=Software&isActive=true
+--- RESPUESTA ---
+[{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software","semester":4,"isActive":true}]
+HTTP 200
+
+--- PETICION ---
+GET /students?semester=7
+--- RESPUESTA ---
+[{"id":2,"name":"Luis Mora","email":"luis.mora@example.edu","age":23,"career":"Redes","semester":7,"isActive":true}]
+HTTP 200
+
+El texto false NO se convierte en booleano verdadero:
+--- PETICION ---
+GET /students?isActive=false
+--- RESPUESTA ---
+[]
+HTTP 200
+
+==============================================================
+ SESION 9 - C - Actualizar
+==============================================================
+--- PETICION ---
+PATCH /students/1
+Content-Type: application/json
+
+{"semester":5,"career":"Software Engineering"}
+--- RESPUESTA ---
+{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software Engineering","semester":5,"isActive":true}
+HTTP 200
+
+==============================================================
+ SESION 9 - D - Reiniciar la API y consultar
+==============================================================
+(La API fue detenida y vuelta a iniciar con npm run start)
+
+--- PETICION ---
+GET /students/1
+--- RESPUESTA ---
+{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software Engineering","semester":5,"isActive":true}
+HTTP 200
+
+La actualizacion del paso C tambien sobrevivio: career y semester siguen cambiados.
+--- PETICION ---
+GET /students
+--- RESPUESTA ---
+[{"id":2,"name":"Luis Mora","email":"luis.mora@example.edu","age":23,"career":"Redes","semester":7,"isActive":true},{"id":1,"name":"Ana Torres","email":"ana.torres@example.edu","age":20,"career":"Software Engineering","semester":5,"isActive":true}]
+HTTP 200
+
+==============================================================
+ SESION 9 - E - Correo repetido (409 desde el servicio)
+==============================================================
+--- PETICION ---
+POST /students
+Content-Type: application/json
+
+{"name":"Otra Persona","email":"ana.torres@example.edu","age":21,"career":"Redes","semester":3,"isActive":true}
+--- RESPUESTA ---
+{"message":"Ya existe un estudiante con este correo","error":"Conflict","statusCode":409}
+HTTP 409
+
+Tambien al cambiar el correo de un estudiante por el de otro:
+--- PETICION ---
+PATCH /students/2
+Content-Type: application/json
+
+{"email":"ana.torres@example.edu"}
+--- RESPUESTA ---
+{"message":"Ya existe un estudiante con este correo","error":"Conflict","statusCode":409}
+HTTP 409
+
+==============================================================
+ SESION 9 - F - No se elimina un estudiante inactivo
+==============================================================
+--- PETICION ---
+PATCH /students/2/status
+Content-Type: application/json
+
+{"isActive":false}
+--- RESPUESTA ---
+{"id":2,"name":"Luis Mora","email":"luis.mora@example.edu","age":23,"career":"Redes","semester":7,"isActive":false}
+HTTP 200
+
+--- PETICION ---
+DELETE /students/2
+--- RESPUESTA ---
+{"message":"No se puede eliminar un estudiante inactivo","error":"Conflict","statusCode":409}
+HTTP 409
+
+Al reactivarlo si se puede eliminar:
+--- PETICION ---
+PATCH /students/2/status
+Content-Type: application/json
+
+{"isActive":true}
+--- RESPUESTA ---
+{"id":2,"name":"Luis Mora","email":"luis.mora@example.edu","age":23,"career":"Redes","semester":7,"isActive":true}
+HTTP 200
+
+--- PETICION ---
+DELETE /students/2
+--- RESPUESTA ---
+{"id":2,"name":"Luis Mora","email":"luis.mora@example.edu","age":23,"career":"Redes","semester":7,"isActive":true}
+HTTP 200
+
+--- PETICION ---
+GET /students/2
+--- RESPUESTA ---
+{"message":"Estudiante con id 2 no encontrado","error":"Not Found","statusCode":404}
+HTTP 404
+
+==============================================================
+ SESION 9 - G - Correo repetido detectado por PostgreSQL
+==============================================================
+El servicio comprueba el correo antes de guardar, de modo que en
+condiciones normales el 409 lo produce esa comprobacion. Pero si
+dos solicitudes llegan a la vez, ambas pueden ver el correo libre
+y la que pierde la carrera choca contra la restriccion UNIQUE de
+la tabla.
+
+Para demostrar que ese caso tampoco termina en un 500, se
+desactivo temporalmente la comprobacion previa del servicio y se
+repitio el POST con un correo ya registrado. El filtro global
+UniqueViolationFilter convirtio el error de integridad en un 409
+con el mismo mensaje:
+
+--- PETICION ---
+POST /students
+Content-Type: application/json
+
+{"name":"Impostor","email":"ana.torres@example.edu","age":22,"career":"Software","semester":5,"isActive":true}
+--- RESPUESTA ---
+{"message":"Ya existe un estudiante con este correo","error":"Conflict","statusCode":409}
+HTTP 409
+
+La comprobacion previa del servicio se restauro inmediatamente
+despues de esta prueba.
+
+================================================================
+ FIN DE LAS EVIDENCIAS DE LA SESION 9
+================================================================

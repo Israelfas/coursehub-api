@@ -85,6 +85,25 @@ al eliminar un estudiante o un curso desaparecen sus matrículas.
 El estudiante inactivo responde `400` y no `409` porque el recurso no está en
 conflicto: la petición es la que no es válida y el cliente debe corregirla.
 
+### Dos defensas para las reglas de unicidad
+
+El correo del estudiante y la pareja estudiante-curso se protegen en dos capas:
+
+1. **El servicio** consulta antes de guardar y lanza un `409` con un mensaje
+   comprensible. Es el camino habitual.
+2. **PostgreSQL** tiene la restricción `UNIQUE`, que es la garantía definitiva.
+
+La segunda capa no es redundante. Si dos solicitudes llegan casi a la vez, ambas
+pueden ver el correo libre antes de que ninguna haya guardado, y la que pierde la
+carrera choca contra la restricción de la base.
+
+Ese choque no debe salir como un `500` sin contexto. El filtro global
+[`UniqueViolationFilter`](src/common/filters/unique-violation.filter.ts) atrapa el
+`QueryFailedError` con código `23505` de PostgreSQL y lo convierte en el mismo
+`409` que habría devuelto el servicio. El filtro identifica la columna en
+conflicto leyendo el campo `detail` del error, no el nombre de la restricción,
+porque TypeORM genera esos nombres de forma automática.
+
 ## Endpoints de cursos
 
 El recurso `courses` se guarda en la tabla `courses` de PostgreSQL. Los ids los
