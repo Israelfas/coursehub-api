@@ -5,38 +5,37 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  FindOptionsRelations,
-  FindOptionsSelect,
-  FindOptionsWhere,
-  Repository,
-} from 'typeorm';
+import { Repository } from 'typeorm';
 import { CoursesService } from '../courses/courses.service.js';
 import { StudentsService } from '../students/students.service.js';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto.js';
 import { EnrollmentsQueryDto } from './dto/enrollments-query.dto.js';
 import { Enrollment } from './entities/enrollment.entity.js';
 
+type PaginatedEnrollments = {
+  items: Enrollment[];
+  meta: { total: number; page: number; limit: number };
+};
+
 @Injectable()
 export class EnrollmentsService {
-  private readonly relations: FindOptionsRelations<Enrollment> = {
-    student: true,
-    course: true,
-  };
-
-  private readonly select: FindOptionsSelect<Enrollment> = {
-    id: true,
-    studentId: true,
-    courseId: true,
-    student: {
-      id: true,
-      name: true,
-      career: true,
-      semester: true,
-      isActive: true,
-    },
-    course: { id: true, title: true, level: true },
-  };
+  /**
+   * Columnas que se exponen de cada relacion. El correo del estudiante queda
+   * fuera a proposito: leftJoinAndSelect traeria la entidad completa.
+   */
+  private static readonly CAMPOS = [
+    'enrollment.id',
+    'enrollment.studentId',
+    'enrollment.courseId',
+    'student.id',
+    'student.name',
+    'student.career',
+    'student.semester',
+    'student.isActive',
+    'course.id',
+    'course.title',
+    'course.level',
+  ];
 
   constructor(
     @InjectRepository(Enrollment)
@@ -45,33 +44,60 @@ export class EnrollmentsService {
     private readonly coursesService: CoursesService,
   ) {}
 
-  findAll(filters: EnrollmentsQueryDto): Promise<Enrollment[]> {
-    const where: FindOptionsWhere<Enrollment> = {};
+  async findAll(query: EnrollmentsQueryDto): Promise<PaginatedEnrollments> {
+    const { search, studentId, courseId, activeOnly, page, limit } = query;
 
-    if (filters.studentId !== undefined) {
-      where.studentId = filters.studentId;
+    const qb = this.enrollments
+      .createQueryBuilder('enrollment')
+      .leftJoinAndSelect('enrollment.student', 'student')
+      .leftJoinAndSelect('enrollment.course', 'course')
+      .select(EnrollmentsService.CAMPOS);
+
+    if (search) {
+      qb.andWhere(
+        '(student.name ILIKE :search OR course.title ILIKE :search)',
+        {
+          search: `%${search.trim()}%`,
+        },
+      );
     }
 
-    if (filters.courseId !== undefined) {
-      where.courseId = filters.courseId;
+    if (studentId) {
+      qb.andWhere('student.id = :studentId', { studentId });
     }
 
-    return this.enrollments.find({
-      where,
-      relations: this.relations,
-      select: this.select,
-      order: { id: 'ASC' },
-    });
+    if (courseId) {
+      qb.andWhere('course.id = :courseId', { courseId });
+    }
+
+    // Se compara con la cadena 'true' a proposito: Boolean('false') es true.
+    if (activeOnly === 'true') {
+      qb.andWhere('student.isActive = :active', { active: true });
+    }
+
+    qb.orderBy('enrollment.id', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return { items, meta: { total, page, limit } };
   }
 
-  async findByStudent(studentId: number): Promise<Enrollment[]> {
+  async findByStudent(
+    studentId: number,
+    query: EnrollmentsQueryDto,
+  ): Promise<PaginatedEnrollments> {
     await this.studentsService.findOne(studentId);
-    return this.findAll({ studentId });
+    return this.findAll({ ...query, studentId });
   }
 
-  async findByCourse(courseId: number): Promise<Enrollment[]> {
+  async findByCourse(
+    courseId: number,
+    query: EnrollmentsQueryDto,
+  ): Promise<PaginatedEnrollments> {
     await this.coursesService.findOne(courseId);
-    return this.findAll({ courseId });
+    return this.findAll({ ...query, courseId });
   }
 
   async create(
@@ -103,19 +129,11 @@ export class EnrollmentsService {
       this.enrollments.create({ studentId, courseId }),
     );
 
-    return this.enrollments.findOne({
-      where: { id: enrollment.id },
-      relations: this.relations,
-      select: this.select,
-    });
+    return this.unaConRelaciones(enrollment.id);
   }
 
   async remove(id: number): Promise<Enrollment> {
-    const enrollment = await this.enrollments.findOne({
-      where: { id },
-      relations: this.relations,
-      select: this.select,
-    });
+    const enrollment = await this.unaConRelaciones(id);
 
     if (!enrollment) {
       throw new NotFoundException(`Matrícula con id ${id} no encontrada`);
@@ -125,5 +143,16 @@ export class EnrollmentsService {
 
     await this.enrollments.remove(enrollment);
     return cancelled;
+  }
+
+  /** Una matricula con sus datos relacionados, usando las mismas columnas. */
+  private unaConRelaciones(id: number): Promise<Enrollment | null> {
+    return this.enrollments
+      .createQueryBuilder('enrollment')
+      .leftJoinAndSelect('enrollment.student', 'student')
+      .leftJoinAndSelect('enrollment.course', 'course')
+      .select(EnrollmentsService.CAMPOS)
+      .where('enrollment.id = :id', { id })
+      .getOne();
   }
 }

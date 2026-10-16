@@ -768,3 +768,174 @@ lista cerrada en lugar de pasarlo directamente.
 ================================================================
  FIN DE LAS EVIDENCIAS DE LA SESION 11
 ================================================================
+
+================================================================
+ SESION 12 - BUSQUEDA Y CONSULTAS RELACIONADAS CON QUERYBUILDER
+================================================================
+
+Datos de prueba: 4 cursos, 4 estudiantes y 6 matriculas. Los nombres
+se eligieron para probar coincidencias parciales: Ana, Anabel y el
+curso Analisis de APIs comparten el prefijo "ana". Bruno Diaz se
+desactivo despues de matricularse, para que activeOnly tenga algo que
+excluir.
+
+Resumen
+-------
+A  Busqueda textual con ILIKE ............................. 200
+B  Filtros combinables ..................................... 200
+C  Busqueda sin resultados: 200 y no 404 ................... 200
+D  Inyeccion SQL tratada como texto ........................ 200
+E  Paginacion sin repetir matriculas ....................... 200
+F  Parametros invalidos .................................... 400
+
+==============================================================
+ SESION 12 - A - Busqueda textual con ILIKE
+==============================================================
+search=nest coincide con dos titulos distintos:
+--- PETICION ---
+GET /enrollments?search=nest
+--- RESPUESTA ---
+{"items":[{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":6,"studentId":3,"courseId":4,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":4,"title":"Testing en NestJS","level":"intermediate"}}],"meta":{"total":3,"page":1,"limit":10}}
+HTTP 200
+
+No distingue mayusculas: NEST devuelve lo mismo.
+--- PETICION ---
+GET /enrollments?search=NEST
+--- RESPUESTA ---
+{"items":[{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":6,"studentId":3,"courseId":4,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":4,"title":"Testing en NestJS","level":"intermediate"}}],"meta":{"total":3,"page":1,"limit":10}}
+HTTP 200
+
+search=ana coincide por NOMBRE, con Ana y tambien con Anabel:
+--- PETICION ---
+GET /enrollments?search=ana
+--- RESPUESTA ---
+{"items":[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":4,"studentId":2,"courseId":3,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":3,"title":"Bases de datos","level":"advanced"}},{"id":5,"studentId":3,"courseId":1,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}}],"meta":{"total":5,"page":1,"limit":10}}
+HTTP 200
+
+==============================================================
+ SESION 12 - B - Filtros combinables
+==============================================================
+Solo estudiantes activos (Bruno quedo inactivo):
+--- PETICION ---
+GET /enrollments?activeOnly=true
+--- RESPUESTA ---
+{"items":[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":4,"studentId":2,"courseId":3,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":3,"title":"Bases de datos","level":"advanced"}}],"meta":{"total":4,"page":1,"limit":10}}
+HTTP 200
+
+activeOnly=false NO se interpreta como verdadero:
+--- PETICION ---
+GET /enrollments?activeOnly=false
+--- RESPUESTA ---
+{"items":[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":4,"studentId":2,"courseId":3,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":3,"title":"Bases de datos","level":"advanced"}},{"id":5,"studentId":3,"courseId":1,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":6,"studentId":3,"courseId":4,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":4,"title":"Testing en NestJS","level":"intermediate"}}],"meta":{"total":6,"page":1,"limit":10}}
+HTTP 200
+
+Busqueda y filtro de actividad combinados, sin sobrescribirse:
+--- PETICION ---
+GET /enrollments?search=nest&activeOnly=true&page=1&limit=5
+--- RESPUESTA ---
+{"items":[{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}}],"meta":{"total":2,"page":1,"limit":5}}
+HTTP 200
+
+Filtro por curso:
+--- PETICION ---
+GET /enrollments?courseId=1
+--- RESPUESTA ---
+{"items":[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":5,"studentId":3,"courseId":1,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}}],"meta":{"total":2,"page":1,"limit":10}}
+HTTP 200
+
+Filtro por estudiante mas busqueda:
+--- PETICION ---
+GET /enrollments?studentId=1&search=nest
+--- RESPUESTA ---
+{"items":[{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}}],"meta":{"total":1,"page":1,"limit":10}}
+HTTP 200
+
+==============================================================
+ SESION 12 - C - Busqueda sin resultados: 200, no 404
+==============================================================
+--- PETICION ---
+GET /enrollments?search=inexistente
+--- RESPUESTA ---
+{"items":[],"meta":{"total":0,"page":1,"limit":10}}
+HTTP 200
+
+==============================================================
+ SESION 12 - D - Inyeccion SQL tratada como texto
+==============================================================
+Si el texto se interpolara, 1=1 devolveria las 6 matriculas.
+Al ir como parametro, se busca literalmente y no coincide nada.
+--- PETICION ---
+GET /enrollments?search=%27%20OR%201%3D1%20--
+--- RESPUESTA ---
+{"items":[],"meta":{"total":0,"page":1,"limit":10}}
+HTTP 200
+
+--- PETICION ---
+GET /enrollments?search=%25
+--- RESPUESTA ---
+{"items":[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":4,"studentId":2,"courseId":3,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":3,"title":"Bases de datos","level":"advanced"}},{"id":5,"studentId":3,"courseId":1,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":6,"studentId":3,"courseId":4,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":4,"title":"Testing en NestJS","level":"intermediate"}}],"meta":{"total":6,"page":1,"limit":10}}
+HTTP 200
+
+==============================================================
+ SESION 12 - E - Paginacion: cada matricula una sola vez
+==============================================================
+--- PETICION ---
+GET /enrollments?page=1&limit=3
+--- RESPUESTA ---
+{"items":[{"id":1,"studentId":1,"courseId":1,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":2,"studentId":1,"courseId":2,"student":{"id":1,"name":"Ana Torres","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}},{"id":3,"studentId":2,"courseId":2,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":2,"title":"Desarrollo con NestJS","level":"beginner"}}],"meta":{"total":6,"page":1,"limit":3}}
+HTTP 200
+
+--- PETICION ---
+GET /enrollments?page=2&limit=3
+--- RESPUESTA ---
+{"items":[{"id":4,"studentId":2,"courseId":3,"student":{"id":2,"name":"Anabel Ruiz","career":"Software","semester":5,"isActive":true},"course":{"id":3,"title":"Bases de datos","level":"advanced"}},{"id":5,"studentId":3,"courseId":1,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":1,"title":"Analisis de APIs","level":"intermediate"}},{"id":6,"studentId":3,"courseId":4,"student":{"id":3,"name":"Bruno Diaz","career":"Software","semester":5,"isActive":false},"course":{"id":4,"title":"Testing en NestJS","level":"intermediate"}}],"meta":{"total":6,"page":2,"limit":3}}
+HTTP 200
+
+==============================================================
+ SESION 12 - F - Parametros invalidos
+==============================================================
+--- PETICION ---
+GET /enrollments?activeOnly=quizas
+--- RESPUESTA ---
+{"message":["activeOnly must be a boolean string"],"error":"Bad Request","statusCode":400}
+HTTP 400
+
+--- PETICION ---
+GET /enrollments?limit=999
+--- RESPUESTA ---
+{"message":["limit must not be greater than 50"],"error":"Bad Request","statusCode":400}
+HTTP 400
+
+Observaciones
+-------------
+En A, search=ana devuelve 5 matriculas porque el ILIKE se aplica al
+nombre del estudiante y al titulo del curso dentro de un mismo
+parentesis: coincide con Ana Torres, con Anabel Ruiz y con el curso
+Analisis de APIs. Los parentesis importan, porque sin ellos el OR se
+mezclaria con los demas filtros y los sobrescribiria.
+
+En B, activeOnly=false devuelve las 6 matriculas y no 0. El servicio
+compara con la cadena 'true' a proposito: Boolean('false') en
+JavaScript es true, de modo que convertir el texto directamente
+invertiria el significado del filtro.
+
+En C, una busqueda sin coincidencias responde 200 con items vacio. El
+recurso "coleccion de matriculas" existe aunque ninguna fila coincida;
+un 404 afirmaria que la coleccion no existe, que es falso.
+
+En D, la entrada ' OR 1=1 -- devuelve total 0. Si el texto se
+concatenara dentro del SQL, esa condicion seria siempre verdadera y
+devolveria las 6 matriculas. Al viajar como parametro :search, se
+busca literalmente ese texto y no coincide con ningun nombre ni
+titulo.
+
+Un matiz honesto sobre la misma prueba: search=% si devuelve las 6
+matriculas, porque el signo de porcentaje es un comodin dentro del
+patron LIKE. Eso no es inyeccion: el cliente no puede alterar la
+estructura de la consulta ni leer otras tablas, solo ampliar su propia
+busqueda. Si el producto necesitara impedirlo, habria que escapar los
+comodines en el valor antes de armar el patron.
+
+================================================================
+ FIN DE LAS EVIDENCIAS DE LA SESION 12
+================================================================

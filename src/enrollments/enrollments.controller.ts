@@ -17,18 +17,24 @@ export class EnrollmentsController {
   constructor(private readonly enrollmentsService: EnrollmentsService) {}
 
   @Get('enrollments')
-  findAll(@Query() filters: EnrollmentsQueryDto) {
-    return this.enrollmentsService.findAll(filters);
+  findAll(@Query() query: EnrollmentsQueryDto) {
+    return this.enrollmentsService.findAll(query);
   }
 
   @Get('students/:studentId/enrollments')
-  findByStudent(@Param('studentId', ParseIntPipe) studentId: number) {
-    return this.enrollmentsService.findByStudent(studentId);
+  findByStudent(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Query() query: EnrollmentsQueryDto,
+  ) {
+    return this.enrollmentsService.findByStudent(studentId, query);
   }
 
   @Get('courses/:courseId/enrollments')
-  findByCourse(@Param('courseId', ParseIntPipe) courseId: number) {
-    return this.enrollmentsService.findByCourse(courseId);
+  findByCourse(
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @Query() query: EnrollmentsQueryDto,
+  ) {
+    return this.enrollmentsService.findByCourse(courseId, query);
   }
 
   @Post('enrollments')

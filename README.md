@@ -231,7 +231,7 @@ y del curso, sin exponer el correo.
 | Método | Endpoint                           | Descripción                                                 |
 | ------ | ---------------------------------- | ----------------------------------------------------------- |
 | POST   | `/enrollments`                     | Registra una matrícula.                                     |
-| GET    | `/enrollments`                     | Lista matrículas; combina filtros `studentId` y `courseId`. |
+| GET    | `/enrollments`                     | Lista matrículas paginadas; admite `search`, `studentId`, `courseId`, `activeOnly`, `page` y `limit`. |
 | GET    | `/students/:studentId/enrollments` | Lista las matrículas de un estudiante existente.            |
 | GET    | `/courses/:courseId/enrollments`   | Lista las matrículas de un curso existente.                 |
 | DELETE | `/enrollments/:id`                 | Cancela una matrícula.                                      |
@@ -264,6 +264,39 @@ Ejemplo de request y respuesta exitosa para `POST /enrollments`:
   }
 }
 ```
+
+### Búsqueda de matrículas
+
+`GET /enrollments` usa `QueryBuilder` porque la consulta atraviesa dos
+relaciones y combina condiciones opcionales.
+
+| Parámetro    | Efecto                                                               |
+| ------------ | -------------------------------------------------------------------- |
+| `search`     | Coincidencia parcial sin distinguir mayúsculas sobre el nombre del estudiante **o** el título del curso. |
+| `studentId`  | Matrículas de ese estudiante.                                        |
+| `courseId`   | Matrículas de ese curso.                                             |
+| `activeOnly` | `true` deja solo las de estudiantes activos.                         |
+| `page`       | Página a devolver; por defecto `1`.                                   |
+| `limit`      | Tamaño de página entre 1 y 50; por defecto `10`.                      |
+
+```
+GET /enrollments?search=nest&activeOnly=true&page=1&limit=5
+```
+
+Los filtros se acumulan con `andWhere` y se combinan sin sobrescribirse. Las dos
+alternativas de `search` van entre paréntesis para que el `OR` no se mezcle con
+los demás filtros.
+
+El texto buscado viaja como parámetro `:search` y nunca se concatena dentro del
+SQL. Una entrada como `' OR 1=1 --` se busca literalmente y devuelve cero
+resultados, en lugar de convertirse en una condición siempre verdadera.
+
+Una búsqueda sin coincidencias responde `200` con `items: []` y `total: 0`, no
+`404`: la colección de matrículas existe aunque ninguna fila coincida.
+
+`activeOnly` se recibe como texto y se compara con `'true'`. No se convierte con
+`Boolean()`, porque `Boolean('false')` es `true` en JavaScript e invertiría el
+significado del filtro.
 
 El endpoint responde `409 Conflict` para una matrícula duplicada, `400 Bad Request`
 para un estudiante inactivo o datos inválidos, y `404 Not Found` si el estudiante o
