@@ -647,3 +647,124 @@ HTTP 200
 ================================================================
  FIN DE LAS EVIDENCIAS DE LA SESION 10
 ================================================================
+
+================================================================
+ SESION 11 - FILTROS, PAGINACION Y ORDENAMIENTO EN /courses
+================================================================
+
+Se sembraron 8 cursos con titulos y niveles distintos, como pide la
+sesion: una lista de uno o dos registros no permite comprobar una
+pagina real.
+
+NOTA SOBRE EL PUERTO: el 3000 y el 3001 estaban ocupados por otro
+proyecto de la maquina, asi que esta demostracion se ejecuto con
+PORT=3333. El contrato de la API es identico.
+
+Resumen
+-------
+A  Contrato completo de la sesion .......................... 200
+B  Sin parametros usa los valores por defecto .............. 200
+C  Tres paginas consecutivas sin repetir ................... 200
+D  Ordenamiento descendente ................................ 200
+E  Cinco parametros invalidos .............................. 400
+
+==============================================================
+ SESION 11 - A - Contrato completo de la sesion
+==============================================================
+--- PETICION ---
+GET /courses?level=beginner&page=1&limit=3&sortBy=title&order=ASC
+--- RESPUESTA ---
+{"items":[{"id":1,"title":"Algoritmos y estructuras","level":"beginner"},{"id":5,"title":"Expresiones regulares","level":"beginner"},{"id":6,"title":"Fundamentos de TypeScript","level":"beginner"}],"meta":{"total":4,"page":1,"limit":3,"totalPages":2}}
+HTTP 200
+
+==============================================================
+ SESION 11 - B - Sin parametros usa los valores por defecto
+==============================================================
+--- PETICION ---
+GET /courses
+--- RESPUESTA ---
+{"items":[{"id":1,"title":"Algoritmos y estructuras","level":"beginner"},{"id":2,"title":"Bases de datos relacionales","level":"intermediate"},{"id":3,"title":"Clean Architecture","level":"advanced"},{"id":4,"title":"Desarrollo con NestJS","level":"intermediate"},{"id":5,"title":"Expresiones regulares","level":"beginner"},{"id":6,"title":"Fundamentos de TypeScript","level":"beginner"},{"id":7,"title":"GraphQL en profundidad","level":"advanced"},{"id":8,"title":"HTTP y APIs REST","level":"beginner"}],"meta":{"total":8,"page":1,"limit":10,"totalPages":1}}
+HTTP 200
+
+==============================================================
+ SESION 11 - C - Dos paginas consecutivas sin repetir
+==============================================================
+--- PETICION ---
+GET /courses?page=1&limit=3&sortBy=title&order=ASC
+--- RESPUESTA ---
+{"items":[{"id":1,"title":"Algoritmos y estructuras","level":"beginner"},{"id":2,"title":"Bases de datos relacionales","level":"intermediate"},{"id":3,"title":"Clean Architecture","level":"advanced"}],"meta":{"total":8,"page":1,"limit":3,"totalPages":3}}
+HTTP 200
+
+--- PETICION ---
+GET /courses?page=2&limit=3&sortBy=title&order=ASC
+--- RESPUESTA ---
+{"items":[{"id":4,"title":"Desarrollo con NestJS","level":"intermediate"},{"id":5,"title":"Expresiones regulares","level":"beginner"},{"id":6,"title":"Fundamentos de TypeScript","level":"beginner"}],"meta":{"total":8,"page":2,"limit":3,"totalPages":3}}
+HTTP 200
+
+--- PETICION ---
+GET /courses?page=3&limit=3&sortBy=title&order=ASC
+--- RESPUESTA ---
+{"items":[{"id":7,"title":"GraphQL en profundidad","level":"advanced"},{"id":8,"title":"HTTP y APIs REST","level":"beginner"}],"meta":{"total":8,"page":3,"limit":3,"totalPages":3}}
+HTTP 200
+
+==============================================================
+ SESION 11 - D - Ordenamiento descendente
+==============================================================
+--- PETICION ---
+GET /courses?limit=3&sortBy=title&order=DESC
+--- RESPUESTA ---
+{"items":[{"id":8,"title":"HTTP y APIs REST","level":"beginner"},{"id":7,"title":"GraphQL en profundidad","level":"advanced"},{"id":6,"title":"Fundamentos de TypeScript","level":"beginner"}],"meta":{"total":8,"page":1,"limit":3,"totalPages":3}}
+HTTP 200
+
+==============================================================
+ SESION 11 - E - Parametros invalidos (400)
+==============================================================
+--- PETICION ---
+GET /courses?page=0
+--- RESPUESTA ---
+{"message":["page must not be less than 1"],"error":"Bad Request","statusCode":400}
+HTTP 400
+
+--- PETICION ---
+GET /courses?limit=200
+--- RESPUESTA ---
+{"message":["limit must not be greater than 50"],"error":"Bad Request","statusCode":400}
+HTTP 400
+
+--- PETICION ---
+GET /courses?sortBy=createdAt
+--- RESPUESTA ---
+{"message":["sortBy must be one of the following values: id, title, level"],"error":"Bad Request","statusCode":400}
+HTTP 400
+
+--- PETICION ---
+GET /courses?order=sideways
+--- RESPUESTA ---
+{"message":["order must be one of the following values: ASC, DESC"],"error":"Bad Request","statusCode":400}
+HTTP 400
+
+--- PETICION ---
+GET /courses?pagina=2
+--- RESPUESTA ---
+{"message":["property pagina should not exist"],"error":"Bad Request","statusCode":400}
+HTTP 400
+
+Observaciones
+-------------
+En el caso A, meta.total vale 4 mientras items trae 3 elementos. Esa
+diferencia es justamente lo que permite al cliente saber que existe una
+segunda pagina sin pedir todos los datos.
+
+En el caso C las tres paginas devuelven 8 cursos distintos, sin
+repeticiones ni ausencias, porque el ordenamiento por title es estable.
+Sin ordenamiento explicito PostgreSQL puede devolver las filas en
+cualquier orden y un mismo curso podria aparecer en dos paginas.
+
+En el caso E, sortBy=createdAt se rechaza aunque sea un nombre
+plausible: solo se admiten id, title y level. El nombre de una columna
+no puede parametrizarse en la consulta, por eso se compara contra una
+lista cerrada en lugar de pasarlo directamente.
+
+================================================================
+ FIN DE LAS EVIDENCIAS DE LA SESION 11
+================================================================

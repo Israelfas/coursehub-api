@@ -120,12 +120,52 @@ genera la base de datos y no se reutilizan después de eliminar un registro.
 
 | Método | Endpoint                  | Descripción                                                          |
 | ------ | ------------------------- | -------------------------------------------------------------------- |
-| GET    | `/courses`                | Lista todos los cursos.                                              |
+| GET    | `/courses`                | Lista cursos paginados; admite `level`, `page`, `limit`, `sortBy` y `order`. |
 | GET    | `/courses?level=beginner` | Lista cursos filtrados por nivel.                                    |
 | GET    | `/courses/:id`            | Consulta un curso por id; responde 404 si no existe.                 |
 | POST   | `/courses`                | Crea un curso.                                                       |
 | PATCH  | `/courses/:id`            | Actualiza parte de un curso; 400 por datos inválidos y 404 si falta. |
 | DELETE | `/courses/:id`            | Elimina un curso; responde 404 si no existe.                         |
+
+### Listado paginado
+
+`GET /courses` devuelve una página de resultados, no la tabla completa.
+
+| Parámetro | Valor por defecto | Reglas                                      |
+| --------- | ----------------- | ------------------------------------------- |
+| `level`   | sin filtro        | Opcional; igualdad exacta.                  |
+| `page`    | `1`               | Entero ≥ 1.                                 |
+| `limit`   | `10`              | Entero entre 1 y 50.                        |
+| `sortBy`  | `id`              | Solo `id`, `title` o `level`.               |
+| `order`   | `ASC`             | Solo `ASC` o `DESC`; no distingue mayúsculas. |
+
+```
+GET /courses?level=beginner&page=1&limit=3&sortBy=title&order=ASC
+```
+
+```json
+{
+  "items": [
+    { "id": 1, "title": "Algoritmos y estructuras", "level": "beginner" },
+    { "id": 5, "title": "Expresiones regulares", "level": "beginner" },
+    { "id": 6, "title": "Fundamentos de TypeScript", "level": "beginner" }
+  ],
+  "meta": { "total": 4, "page": 1, "limit": 3, "totalPages": 2 }
+}
+```
+
+`meta.total` cuenta todos los cursos que cumplen el filtro, mientras que
+`items.length` solo cuenta los de esta página. Por eso el cliente sabe que hay
+una segunda página sin tener que pedir todos los datos.
+
+El ordenamiento se aplica siempre, incluso sin `sortBy`. Sin un orden explícito
+PostgreSQL puede devolver las filas en cualquier secuencia, y un mismo curso
+podría aparecer en dos páginas distintas o no aparecer en ninguna.
+
+`sortBy` se compara contra una lista cerrada y un valor fuera de ella responde
+`400`. El nombre de una columna no puede pasarse como parámetro de la consulta
+igual que se pasa un valor, así que aceptarlo tal cual abriría la puerta a
+inyección SQL.
 
 Ejemplo de body para `POST /courses`:
 
