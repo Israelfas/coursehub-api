@@ -45,16 +45,37 @@ complete los valores de su instalación local:
 cp .env.example .env
 ```
 
-| Variable            | Descripción                        | Ejemplo     |
-| ------------------- | ---------------------------------- | ----------- |
-| `DATABASE_HOST`     | Host de PostgreSQL                 | `localhost` |
-| `DATABASE_PORT`     | Puerto de PostgreSQL               | `5432`      |
-| `DATABASE_NAME`     | Nombre de la base de datos         | `coursehub` |
-| `DATABASE_USER`     | Usuario de PostgreSQL              | `postgres`  |
-| `DATABASE_PASSWORD` | Contraseña del usuario             | -           |
+| Variable      | Descripción                   | Por defecto   | Obligatoria |
+| ------------- | ----------------------------- | ------------- | ----------- |
+| `NODE_ENV`    | `development`, `test` o `production` | `development` | No   |
+| `PORT`        | Puerto donde escucha la API   | `3000`        | No          |
+| `DB_HOST`     | Host de PostgreSQL            | -             | Sí          |
+| `DB_PORT`     | Puerto de PostgreSQL          | `5432`        | No          |
+| `DB_NAME`     | Nombre de la base de datos    | -             | Sí          |
+| `DB_USER`     | Usuario de PostgreSQL         | -             | Sí          |
+| `DB_PASSWORD` | Contraseña del usuario        | -             | Sí          |
 
-`.env` está excluido del repositorio y nunca debe publicarse. Si falta una
-clave, la aplicación se detiene al arrancar con un error que indica cuál es.
+`.env` está excluido del repositorio y nunca debe publicarse. `.env.example` sí
+se comparte: lleva los nombres esperados con valores ficticios, para que otra
+persona pueda reproducir la configuración sin recibir credenciales.
+
+### La configuración se valida al arrancar
+
+`ConfigModule` valida el entorno con un esquema de Joi **antes** de que la
+aplicación intente conectarse a PostgreSQL. Una variable ausente o con un valor
+imposible detiene el arranque y nombra la variable:
+
+```
+Error: Config validation error: DB_PORT: "DB_PORT" must be a number
+Error: Config validation error: DB_NAME: "DB_NAME" is required
+Error: Config validation error: NODE_ENV: "NODE_ENV" must be one of [development, test, production]
+```
+
+Fallar así, temprano y con el nombre de la variable, es preferible a arrancar con
+una configuración incompleta y romperse después con un error de conexión que no
+explica la causa real.
+
+El puerto se cambia editando `PORT` en el `.env`, sin tocar TypeScript.
 
 La conexión usa `synchronize: true`, por lo que TypeORM crea la tabla `courses`
 automáticamente en el primer arranque. Esta opción es útil solo en desarrollo;
