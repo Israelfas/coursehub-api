@@ -25,16 +25,19 @@ import { StudentsModule } from './students/students.module.js';
       }),
     }),
     TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        host: config.getOrThrow('DB_HOST'),
-        port: Number(config.getOrThrow('DB_PORT')),
-        username: config.getOrThrow('DB_USER'),
-        password: config.getOrThrow('DB_PASSWORD'),
-        database: config.getOrThrow('DB_NAME'),
+        host: config.getOrThrow<string>('DB_HOST'),
+        port: config.getOrThrow<number>('DB_PORT'),
+        username: config.getOrThrow<string>('DB_USER'),
+        password: config.getOrThrow<string>('DB_PASSWORD'),
+        database: config.getOrThrow<string>('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: true,
+        // Solo en desarrollo: fuera de ahi el esquema se cambia con migraciones
+        // revisadas, nunca de forma implicita al arrancar.
+        synchronize: config.getOrThrow<string>('NODE_ENV') === 'development',
       }),
     }),
     CoursesModule,

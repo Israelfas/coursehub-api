@@ -77,6 +77,46 @@ explica la causa real.
 
 El puerto se cambia editando `PORT` en el `.env`, sin tocar TypeScript.
 
+## Puesta en marcha
+
+```bash
+npm install
+createdb coursehub          # o créela desde pgAdmin con ese nombre exacto
+cp .env.example .env        # y complete DB_PASSWORD con su contraseña local
+npm run start:dev
+```
+
+La API queda escuchando en el puerto indicado por `PORT`. Al arrancar imprime
+una línea con el puerto, el ambiente y el estado de `synchronize`; nunca
+imprime la contraseña ni el objeto de configuración completo.
+
+```
+[Bootstrap] CourseHub API escuchando en el puerto 3333 | NODE_ENV=development | synchronize=true
+```
+
+## Desarrollo y producción
+
+`synchronize` se decide a partir de `NODE_ENV`, no de un comentario que alguien
+deba acordarse de editar antes de publicar:
+
+```ts
+synchronize: config.getOrThrow<string>('NODE_ENV') === 'development',
+```
+
+| Decisión           | `development`                | `production`                     |
+| ------------------ | ---------------------------- | -------------------------------- |
+| Fuente de valores  | `.env` local                 | Variables del entorno de despliegue |
+| `synchronize`      | `true`                       | `false`                          |
+| Cambios de esquema | Ajuste local desechable      | Migraciones revisadas            |
+
+Con `synchronize: true`, TypeORM ajusta las tablas para que coincidan con las
+entidades, y eso incluye **eliminar** columnas que ya no aparecen en ellas. En
+una base con datos reales esa pérdida sería silenciosa e irreversible, así que
+fuera de desarrollo el esquema se cambia únicamente con migraciones.
+
+Esta configuración deja la aplicación en posición de adoptar migraciones, pero
+todavía no las implementa.
+
 La conexión usa `synchronize: true`, por lo que TypeORM crea la tabla `courses`
 automáticamente en el primer arranque. Esta opción es útil solo en desarrollo;
 en producción se usan migraciones.

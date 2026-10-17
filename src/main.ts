@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
@@ -19,6 +19,16 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
-  await app.listen(config.getOrThrow<number>('PORT'));
+  const port = config.getOrThrow<number>('PORT');
+  const entorno = config.getOrThrow<string>('NODE_ENV');
+
+  await app.listen(port);
+
+  // Solo datos no sensibles: nunca el objeto de configuracion completo,
+  // que contiene la contrasena de la base.
+  new Logger('Bootstrap').log(
+    `CourseHub API escuchando en el puerto ${port} | NODE_ENV=${entorno} | ` +
+      `synchronize=${entorno === 'development'}`,
+  );
 }
 await bootstrap();
