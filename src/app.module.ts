@@ -4,6 +4,7 @@ import Joi from 'joi';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { AuthModule } from './auth/auth.module.js';
 import { CoursesModule } from './courses/courses.module.js';
 import { EnrollmentsModule } from './enrollments/enrollments.module.js';
 import { StudentsModule } from './students/students.module.js';
@@ -43,6 +44,7 @@ import { StudentsModule } from './students/students.module.js';
     CoursesModule,
     StudentsModule,
     EnrollmentsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -25,18 +25,23 @@ const FOREIGN_KEY_VIOLATION = '23503';
  */
 const COLUMNS_IN_DETAIL = /\(([^)]+)\)=/;
 
+// Se indexa por tabla y columnas porque el mismo nombre de columna puede ser
+// unico en varias tablas: email lo es en students y tambien en users.
 const UNIQUE_MESSAGES: Record<string, string> = {
-  email: 'Ya existe un estudiante con este correo',
-  'studentId, courseId': 'El estudiante ya está matriculado en este curso',
+  'students:email': 'Ya existe un estudiante con este correo',
+  'users:email': 'Ya existe una cuenta con este correo',
+  'enrollments:studentId, courseId':
+    'El estudiante ya está matriculado en este curso',
 };
 
 const FOREIGN_KEY_MESSAGES: Record<string, string> = {
-  id: 'No se puede eliminar un recurso que todavía tiene matrículas',
-  studentId: 'El estudiante referenciado no existe',
-  courseId: 'El curso referenciado no existe',
+  'enrollments:id':
+    'No se puede eliminar un recurso que todavía tiene matrículas',
+  'enrollments:studentId': 'El estudiante referenciado no existe',
+  'enrollments:courseId': 'El curso referenciado no existe',
 };
 
-type DriverError = { code?: string; detail?: string };
+type DriverError = { code?: string; detail?: string; table?: string };
 
 @Catch(QueryFailedError)
 export class DatabaseConstraintFilter
@@ -58,11 +63,12 @@ export class DatabaseConstraintFilter
 
     const columns =
       COLUMNS_IN_DETAIL.exec(driverError?.detail ?? '')?.[1] ?? '';
+    const clave = `${driverError?.table ?? ''}:${columns}`;
     const messages = isUnique ? UNIQUE_MESSAGES : FOREIGN_KEY_MESSAGES;
     const fallback = isUnique
       ? 'El registro infringe una restricción de unicidad'
       : 'La operación infringe una relación entre tablas';
 
-    super.catch(new ConflictException(messages[columns] ?? fallback), host);
+    super.catch(new ConflictException(messages[clave] ?? fallback), host);
   }
 }

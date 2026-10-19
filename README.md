@@ -121,6 +121,54 @@ La conexión usa `synchronize: true`, por lo que TypeORM crea la tabla `courses`
 automáticamente en el primer arranque. Esta opción es útil solo en desarrollo;
 en producción se usan migraciones.
 
+## Cuentas de usuario
+
+`User` representa una cuenta que puede autenticarse ante la API. **No se
+relaciona con `Student`**: no todo estudiante tiene cuenta, ni toda cuenta
+corresponde a un estudiante.
+
+| Método | Endpoint         | Descripción                        |
+| ------ | ---------------- | ---------------------------------- |
+| POST   | `/auth/register` | Registra una cuenta y devuelve sus datos públicos. |
+
+```json
+{
+  "email": "ana@example.com",
+  "password": "aprendo-nest-2026"
+}
+```
+
+```json
+{
+  "id": 1,
+  "email": "ana@example.com",
+  "createdAt": "2026-10-19T19:34:12.841Z"
+}
+```
+
+### La contraseña nunca se guarda
+
+```
+cliente → DTO valida la forma → AuthService calcula el hash con bcrypt
+       → PostgreSQL guarda solo passwordHash → la respuesta omite ambos
+```
+
+El texto original existe en un único punto: dentro de `AuthService.register`,
+entre que llega el DTO y se calcula el hash. No se registra en consola, no entra
+en un mensaje de error y no aparece en ninguna respuesta.
+
+| Decisión | Regla |
+| --- | --- |
+| Correo | Se recorta y pasa a minúsculas antes de guardar y de buscar, así que `ANA@EXAMPLE.COM` y `ana@example.com` son la misma cuenta. |
+| Contraseña | Entre 8 y 72 caracteres. **No** se recorta ni se pasa a minúsculas: eso cambiaría el secreto elegido. |
+| Hash | bcrypt con 12 rondas, con sal incorporada. |
+| Columna | Se llama `passwordHash` y lleva `select: false`, para que una consulta normal no la arrastre por accidente. |
+| Correo repetido | `409`, tanto por la comprobación del servicio como por la restricción `UNIQUE` de la base. |
+
+`UsersService.create` recibe un hash ya calculado, nunca la contraseña. Así no
+existe un método `create(email, password)` que pudiera persistir el secreto por
+descuido.
+
 ## Persistencia
 
 Los tres recursos se guardan en PostgreSQL mediante TypeORM.
