@@ -15,6 +15,19 @@ export class UsersService {
   }
 
   /**
+   * Unica consulta que carga passwordHash, porque la columna es select: false.
+   * El nombre deja claro que es excepcional: solo el flujo de autenticacion la
+   * necesita. No usarla para listados ni perfiles.
+   */
+  findByEmailWithPassword(email: string): Promise<User | null> {
+    return this.users
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.email = :email', { email })
+      .getOne();
+  }
+
+  /**
    * Recibe un hash ya calculado, nunca la contrasena. Asi no existe un metodo
    * create(email, password) que pudiera guardar el secreto por descuido.
    */

@@ -146,6 +146,38 @@ corresponde a un estudiante.
 }
 ```
 
+| Método | Endpoint      | Descripción                                   |
+| ------ | ------------- | --------------------------------------------- |
+| POST   | `/auth/login` | Comprueba las credenciales. Devuelve `200`, aún sin token. |
+
+```json
+{
+  "email": "ana@example.com",
+  "password": "aprendo-nest-2026"
+}
+```
+
+Responde `200` y no `201` porque no se crea ningún recurso: solo se valida un
+acceso. El token llega en la Semana 9.
+
+### El mismo error para dos fallos distintos
+
+Un correo no registrado y una contraseña incorrecta devuelven **exactamente la
+misma respuesta**:
+
+```json
+{ "message": "Credenciales inválidas", "error": "Unauthorized", "statusCode": 401 }
+```
+
+Si la API dijera "ese correo no existe", cualquiera podría probar una lista de
+direcciones y descubrir cuáles son cuentas reales. En el registro sí se informa
+que un correo está ocupado, porque ahí la amenaza es distinta y el usuario
+necesita saber por qué no puede continuar.
+
+Los errores de formato siguen siendo claros: un correo mal escrito o una
+contraseña corta responden `400` con el detalle, porque ni siquiera llegan al
+servicio y no revelan nada sobre las cuentas existentes.
+
 ### La contraseña nunca se guarda
 
 ```
@@ -168,6 +200,16 @@ en un mensaje de error y no aparece en ninguna respuesta.
 `UsersService.create` recibe un hash ya calculado, nunca la contraseña. Así no
 existe un método `create(email, password)` que pudiera persistir el secreto por
 descuido.
+
+En el login, la contraseña **no se descifra**: un hash no es cifrado y no tiene
+vuelta atrás. Tampoco se vuelve a hashear para comparar con `===`, porque bcrypt
+incorpora una sal y dos hashes de la misma contraseña son distintos.
+`bcrypt.compare` recibe el texto recibido y el hash guardado, y devuelve una
+decisión booleana.
+
+Como `passwordHash` es `select: false`, el hash no viaja en ninguna consulta
+normal. Solo `UsersService.findByEmailWithPassword` lo carga, con `addSelect`, y
+existe únicamente para el flujo de autenticación.
 
 ## Persistencia
 
