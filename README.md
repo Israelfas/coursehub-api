@@ -134,7 +134,7 @@ corresponde a un estudiante.
 ```json
 {
   "email": "ana@example.com",
-  "password": "aprendo-nest-2026"
+  "password": "<su contraseña>"
 }
 ```
 
@@ -153,12 +153,16 @@ corresponde a un estudiante.
 ```json
 {
   "email": "ana@example.com",
-  "password": "aprendo-nest-2026"
+  "password": "<su contraseña>"
 }
 ```
 
 Responde `200` y no `201` porque no se crea ningún recurso: solo se valida un
 acceso. El token llega en la Semana 9.
+
+Los ejemplos de este README nunca llevan una contraseña escrita, ni siquiera de
+prueba: un documento compartido no es sitio para un secreto, y la costumbre de
+escribirlos ahí es la que termina filtrando uno real.
 
 ### El mismo error para dos fallos distintos
 
