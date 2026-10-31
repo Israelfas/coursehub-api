@@ -3,3 +3,9 @@ export type JwtPayload = {
   sub: number;
   email: string;
 };
+
+/** Identidad segura disponible en request.user tras verificar el JWT. */
+export type AuthenticatedUser = {
+  id: number;
+  email: string;
+};

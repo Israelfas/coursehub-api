@@ -13,9 +13,9 @@ import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
-import { JwtPayload } from './types/jwt-payload.type.js';
+import { AuthenticatedUser } from './types/jwt-payload.type.js';
 
-type AuthenticatedRequest = Request & { user: JwtPayload };
+type AuthenticatedRequest = Request & { user: AuthenticatedUser };
 
 @Controller('auth')
 export class AuthController {

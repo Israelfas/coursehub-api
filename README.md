@@ -54,6 +54,8 @@ cp .env.example .env
 | `DB_NAME`     | Nombre de la base de datos    | -             | Sí          |
 | `DB_USER`     | Usuario de PostgreSQL         | -             | Sí          |
 | `DB_PASSWORD` | Contraseña del usuario        | -             | Sí          |
+| `JWT_SECRET` | Secreto para firmar y verificar JWT (mínimo 32 caracteres). | - | Sí |
+| `JWT_EXPIRES_IN` | Duración del access token. | `15m` | No |
 
 `.env` está excluido del repositorio y nunca debe publicarse. `.env.example` sí
 se comparte: lleva los nombres esperados con valores ficticios, para que otra
@@ -148,7 +150,7 @@ corresponde a un estudiante.
 
 | Método | Endpoint      | Descripción                                   |
 | ------ | ------------- | --------------------------------------------- |
-| POST   | `/auth/login` | Comprueba las credenciales. Devuelve `200`, aún sin token. |
+| POST   | `/auth/login` | Comprueba las credenciales y devuelve un access token. |
 
 ```json
 {
@@ -157,8 +159,21 @@ corresponde a un estudiante.
 }
 ```
 
-Responde `200` y no `201` porque no se crea ningún recurso: solo se valida un
-acceso. El token llega en la Semana 9.
+Responde `200` y no `201` porque no se crea ningún recurso. Tras validar la
+contraseña, devuelve `accessToken` y un usuario seguro. El token es una
+credencial: no se publica ni se incluye como ejemplo real en este README.
+
+### Rutas públicas y protegidas
+
+| Ruta | Acceso | Comportamiento |
+| --- | --- | --- |
+| `POST /auth/register` | Pública | Permite crear una cuenta. |
+| `POST /auth/login` | Pública | Emite el access token tras validar credenciales. |
+| `GET /auth/me` | Requiere JWT | Devuelve `{ id, email }` para un Bearer válido; sin token, alterado o expirado responde `401`. |
+| `POST /courses` | Requiere JWT | Conserva las validaciones del DTO: un JWT válido no convierte un body inválido en válido. |
+
+Las rutas protegidas requieren el encabezado `Authorization: Bearer <accessToken>`.
+Esta etapa solo autentica identidad; todavía no implementa roles ni permisos.
 
 Los ejemplos de este README nunca llevan una contraseña escrita, ni siquiera de
 prueba: un documento compartido no es sitio para un secreto, y la costumbre de
@@ -278,7 +293,7 @@ genera la base de datos y no se reutilizan después de eliminar un registro.
 | GET    | `/courses`                | Lista cursos paginados; admite `level`, `page`, `limit`, `sortBy` y `order`. |
 | GET    | `/courses?level=beginner` | Lista cursos filtrados por nivel.                                    |
 | GET    | `/courses/:id`            | Consulta un curso por id; responde 404 si no existe.                 |
-| POST   | `/courses`                | Crea un curso.                                                       |
+| POST   | `/courses`                | Crea un curso; requiere Bearer JWT válido.                          |
 | PATCH  | `/courses/:id`            | Actualiza parte de un curso; 400 por datos inválidos y 404 si falta. |
 | DELETE | `/courses/:id`            | Elimina un curso; responde 404 si no existe.                         |
 
