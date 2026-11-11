@@ -1,8 +1,10 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { DatabaseConstraintFilter } from './common/filters/database-constraint.filter.js';
+import { HttpErrorFilter } from './common/filters/http-error.filter.js';
+import { TimingInterceptor } from './common/interceptors/timing.interceptor.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,9 +15,11 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  const { httpAdapter } = app.get(HttpAdapterHost);
-
-  app.useGlobalFilters(new DatabaseConstraintFilter(httpAdapter));
+  // El general va primero y el especifico despues: Nest evalua los filtros
+  // globales en orden inverso al de registro, asi que DatabaseConstraintFilter
+  // atrapa QueryFailedError antes de que llegue al catch-all.
+  app.useGlobalFilters(new HttpErrorFilter(), new DatabaseConstraintFilter());
+  app.useGlobalInterceptors(new TimingInterceptor());
 
   const config = app.get(ConfigService);
 

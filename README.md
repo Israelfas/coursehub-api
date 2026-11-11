@@ -315,6 +315,73 @@ HTTPS**: sin él, un Bearer token viaja legible y puede interceptarse en una red
 no confiable, y la firma correcta del token no lo impide. La terminación TLS
 suele resolverse en un proxy, un balanceador o la plataforma de despliegue.
 
+## Componentes transversales
+
+El recorrido de una solicitud es: **middleware → guard → pipe → controlador
+→ interceptor → respuesta**. Si algo lanza una excepción, la traduce un filter.
+
+| Componente | Responsabilidad | En CourseHub |
+| ---------- | --------------- | ------------ |
+| Middleware | Trabajo HTTP general | `RequestLoggerMiddleware` registra método, ruta, estado y duración. |
+| Guard      | Decide si la solicitud continúa | `JwtAuthGuard` y `RolesGuard`. |
+| Pipe       | Transforma o valida antes del método | `ValidationPipe` global y `ParseIntPipe` en los ids. |
+| Interceptor| Actúa antes y después del método | `TimingInterceptor` mide la duración. |
+| Filter     | Traduce excepciones a respuestas | `HttpErrorFilter` y `DatabaseConstraintFilter`. |
+
+### Formato único de error
+
+Todos los errores salen con la misma forma, para que un cliente no tenga que
+distinguir dos formatos:
+
+```json
+{
+  "statusCode": 404,
+  "path": "/courses/999999",
+  "timestamp": "2026-11-11T19:13:12.970Z",
+  "message": "Curso con id 999999 no encontrado"
+}
+```
+
+Un `500` **no** revela la causa: una traza, una consulta SQL o el nombre de una
+variable de entorno le sirven a quien busca una vía de entrada. El detalle queda
+en el registro interno; la respuesta solo dice `Error interno del servidor`.
+
+### Qué no se registra
+
+El middleware anota método, ruta, estado y duración, y **nada más**. No registra
+la cabecera `Authorization`, ni el cuerpo, ni los parámetros: ahí viajan tokens y
+contraseñas, y un archivo de registro se copia, se comparte y sobrevive mucho
+más que una petición.
+
+## Capas del módulo de cursos
+
+Actualizar un curso está separado en capas para que su regla no dependa ni de
+HTTP ni de TypeORM:
+
+```
+CoursesController  →  UpdateCourseUseCase  →  CourseRepository  →  TypeOrmCourseRepository  →  PostgreSQL
+   (traduce HTTP)      (regla de negocio)        (puerto)              (adaptador)
+```
+
+| Pieza | Qué sabe |
+| ----- | -------- |
+| `CoursesController` | De HTTP: rutas, códigos, DTOs. Nada de reglas. |
+| `UpdateCourseUseCase` | De la regla: quién puede editar un curso. No conoce Express ni PostgreSQL. |
+| `CourseRepository` | Es un contrato de dos métodos: `findById` y `save`. Solo lo que ese caso de uso necesita. |
+| `TypeOrmCourseRepository` | La única clase que sabe que detrás hay TypeORM. |
+
+La pregunta que justifica la separación: **si se cambiara de ORM, se reescribe
+`TypeOrmCourseRepository`; si cambiara la regla de propiedad, se edita
+`UpdateCourseUseCase`.** Son dos clases distintas, y por eso la separación sirve
+de algo.
+
+El puerto tiene dos métodos a propósito. Una interfaz con todo el CRUD
+obligaría a cualquier implementación a escribir métodos que este caso de uso no
+usa.
+
+Solo se refactorizó esta operación. El resto del módulo sigue en `CoursesService`,
+porque la arquitectura no es la cantidad de carpetas.
+
 ## Persistencia
 
 Los tres recursos se guardan en PostgreSQL mediante TypeORM.

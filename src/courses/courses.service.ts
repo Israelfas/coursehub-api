@@ -1,15 +1,9 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsOrder, Repository } from 'typeorm';
 import { CoursesQueryDto } from './dto/courses-query.dto.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
-import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type.js';
-import { UserRole } from '../users/entities/user-role.enum.js';
 import { Course } from './entities/course.entity.js';
 
 type PaginatedCourses = {
@@ -59,35 +53,6 @@ export class CoursesService {
     return this.courses.save(
       this.courses.create({ ...createCourseDto, createdByUserId: actor.id }),
     );
-  }
-
-  async update(
-    id: number,
-    input: UpdateCourseDto,
-    actor: AuthenticatedUser,
-  ): Promise<Course> {
-    const course = await this.findOne(id);
-
-    this.asegurarQuePuedeEditar(course, actor);
-
-    return this.courses.save(Object.assign(course, input));
-  }
-
-  /**
-   * La propiedad se comprueba aqui y no en un guard: RolesGuard no sabe quien
-   * creo un curso sin consultarlo, y esa consulta pertenece al servicio.
-   */
-  private asegurarQuePuedeEditar(
-    course: Course,
-    actor: AuthenticatedUser,
-  ): void {
-    if (actor.role === UserRole.ADMIN) {
-      return;
-    }
-
-    if (course.createdByUserId !== actor.id) {
-      throw new ForbiddenException('Solo puede modificar los cursos que creó');
-    }
   }
 
   async remove(id: number): Promise<Course> {

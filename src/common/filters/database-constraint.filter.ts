@@ -1,11 +1,13 @@
 import {
   ArgumentsHost,
   Catch,
-  ConflictException,
   ExceptionFilter,
+  HttpStatus,
+  Logger,
 } from '@nestjs/common';
-import { BaseExceptionFilter } from '@nestjs/core';
+import type { Request, Response } from 'express';
 import { QueryFailedError } from 'typeorm';
+import { construirRespuesta } from './error-response.js';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -44,20 +46,33 @@ const FOREIGN_KEY_MESSAGES: Record<string, string> = {
 type DriverError = { code?: string; detail?: string; table?: string };
 
 @Catch(QueryFailedError)
-export class DatabaseConstraintFilter
-  extends BaseExceptionFilter
-  implements ExceptionFilter
-{
+export class DatabaseConstraintFilter implements ExceptionFilter {
+  private readonly logger = new Logger(DatabaseConstraintFilter.name);
+
   catch(exception: QueryFailedError, host: ArgumentsHost): void {
+    const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
+
     const driverError = exception.driverError as DriverError | undefined;
     const code = driverError?.code;
-
     const isUnique = code === UNIQUE_VIOLATION;
     const isRelation =
       code === RESTRICT_VIOLATION || code === FOREIGN_KEY_VIOLATION;
 
     if (!isUnique && !isRelation) {
-      super.catch(exception, host);
+      // Cualquier otro fallo de consulta es un problema del servidor, y su
+      // detalle no sale en la respuesta: queda solo en el registro interno.
+      this.logger.error(`${request.method} ${request.url}`, exception.stack);
+      response
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json(
+          construirRespuesta(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            request.url,
+            'Error interno del servidor',
+          ),
+        );
       return;
     }
 
@@ -69,6 +84,14 @@ export class DatabaseConstraintFilter
       ? 'El registro infringe una restricción de unicidad'
       : 'La operación infringe una relación entre tablas';
 
-    super.catch(new ConflictException(messages[clave] ?? fallback), host);
+    response
+      .status(HttpStatus.CONFLICT)
+      .json(
+        construirRespuesta(
+          HttpStatus.CONFLICT,
+          request.url,
+          messages[clave] ?? fallback,
+        ),
+      );
   }
 }

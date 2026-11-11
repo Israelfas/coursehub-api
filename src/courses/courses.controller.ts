@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -18,11 +19,15 @@ import { UserRole } from '../users/entities/user-role.enum.js';
 import { CoursesQueryDto } from './dto/courses-query.dto.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
+import { UpdateCourseUseCase } from './application/update-course.use-case.js';
 import { CoursesService } from './courses.service.js';
 
 @Controller('courses')
 export class CoursesController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(
+    private readonly coursesService: CoursesService,
+    private readonly updateCourse: UpdateCourseUseCase,
+  ) {}
 
   @Get()
   findAll(@Query() query: CoursesQueryDto) {
@@ -30,8 +35,8 @@ export class CoursesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.coursesService.findOne(Number(id));
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.findOne(id);
   }
 
   // El orden de los guards importa: primero identidad, luego permiso.
@@ -47,23 +52,24 @@ export class CoursesController {
 
   /**
    * Administradores y docentes pueden intentarlo; que el docente sea el dueno
-   * lo decide el servicio, porque el guard no conoce el curso.
+   * lo decide UpdateCourseUseCase, porque el guard no conoce el curso.
    */
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateCourseDto: UpdateCourseDto,
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.coursesService.update(Number(id), updateCourseDto, actor);
+    // El controlador solo traduce HTTP: la regla vive en el caso de uso.
+    return this.updateCourse.ejecutar(id, updateCourseDto, actor);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
-    return this.coursesService.remove(Number(id));
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.remove(id);
   }
 }
