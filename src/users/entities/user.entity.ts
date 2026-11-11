@@ -4,6 +4,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { UserRole } from './user-role.enum.js';
 
 @Entity('users')
 export class User {
@@ -20,6 +21,13 @@ export class User {
    */
   @Column({ select: false })
   passwordHash: string;
+
+  /**
+   * Por defecto, el rol de menor privilegio. Una cuenta nueva no puede
+   * administrar nada hasta que alguien le asigne otro rol de forma explicita.
+   */
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.STUDENT })
+  role: UserRole;
 
   @CreateDateColumn()
   createdAt: Date;

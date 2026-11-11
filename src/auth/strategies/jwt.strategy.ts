@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import {
-  AuthenticatedUser,
-  JwtPayload,
-} from '../types/jwt-payload.type.js';
+import { AuthenticatedUser, JwtPayload } from '../types/jwt-payload.type.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -20,6 +17,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   validate(payload: JwtPayload): AuthenticatedUser {
     // Passport expone este objeto como request.user solo tras verificar firma
     // y vencimiento. No se consulta ni devuelve passwordHash.
-    return { id: payload.sub, email: payload.email };
+    return { id: payload.sub, email: payload.email, role: payload.role };
   }
 }

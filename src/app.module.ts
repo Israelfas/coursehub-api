@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import Joi from 'joi';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module.js';
 import { CoursesModule } from './courses/courses.module.js';
 import { EnrollmentsModule } from './enrollments/enrollments.module.js';
@@ -25,6 +27,7 @@ import { StudentsModule } from './students/students.module.js';
         DB_PASSWORD: Joi.string().allow('').required(),
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_EXPIRES_IN: Joi.string().default('15m'),
+        CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
       }),
     }),
     TypeOrmModule.forRootAsync({
@@ -43,12 +46,14 @@ import { StudentsModule } from './students/students.module.js';
         synchronize: config.getOrThrow<string>('NODE_ENV') === 'development',
       }),
     }),
+    // Limite general: 20 solicitudes por minuto desde la misma direccion.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
     CoursesModule,
     StudentsModule,
     EnrollmentsModule,
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

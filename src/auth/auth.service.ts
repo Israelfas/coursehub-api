@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
+import { UserRole } from '../users/entities/user-role.enum.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -12,6 +13,7 @@ const RONDAS = 12;
 type UsuarioPublico = {
   id: number;
   email: string;
+  role: UserRole;
   createdAt: Date;
 };
 
@@ -27,14 +29,25 @@ export class AuthService {
     const user = await this.usersService.create(dto.email, passwordHash);
 
     // La respuesta se arma campo por campo: nunca se devuelve la entidad.
-    return { id: user.id, email: user.email, createdAt: user.createdAt };
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    };
   }
 
   async login(
     dto: LoginDto,
   ): Promise<{ accessToken: string; user: UsuarioPublico }> {
     const user = await this.validateCredentials(dto.email, dto.password);
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+    // El rol viaja firmado para que RolesGuard no consulte la base en cada
+    // peticion. A cambio, un cambio de rol surte efecto cuando vence el token.
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
 
     return {
       accessToken: await this.jwtService.signAsync(payload),
@@ -61,6 +74,11 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return { id: user.id, email: user.email, createdAt: user.createdAt };
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    };
   }
 }

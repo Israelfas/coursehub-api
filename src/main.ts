@@ -19,6 +19,18 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
+  // CORS decide que webs pueden LEER la respuesta desde un navegador. No es
+  // autorizacion: Postman o un script del servidor llaman igual a la API, asi
+  // que las rutas siguen exigiendo JWT y rol.
+  app.enableCors({
+    origin: config
+      .getOrThrow<string>('CORS_ORIGINS')
+      .split(',')
+      .map((o) => o.trim()),
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
   const port = config.getOrThrow<number>('PORT');
   const entorno = config.getOrThrow<string>('NODE_ENV');
 

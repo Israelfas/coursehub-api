@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -28,6 +29,9 @@ export class AuthController {
   }
 
   // 200 y no el 201 por defecto de POST: no se crea ningun recurso.
+  // Limite mas estricto que el global porque esta ruta recibe credenciales:
+  // 5 intentos por minuto frenan la prueba masiva de contrasenas.
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {

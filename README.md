@@ -230,6 +230,91 @@ Como `passwordHash` es `select: false`, el hash no viaja en ninguna consulta
 normal. Solo `UsersService.findByEmailWithPassword` lo carga, con `addSelect`, y
 existe únicamente para el flujo de autenticación.
 
+## Autorización: roles y propiedad
+
+La autenticación responde *quién sos*; la autorización, *si podés hacer esta
+acción*. Un JWT válido demuestra la identidad, no el permiso.
+
+| Código | Significado |
+| ------ | ----------- |
+| `401`  | No hay identidad válida: falta el token, o su firma o vencimiento no verifican. |
+| `403`  | La identidad existe pero no tiene permiso para esa acción. |
+
+### Roles
+
+| Rol       | Puede |
+| --------- | ----- |
+| `student` | Rol por defecto de toda cuenta nueva. No administra cursos. |
+| `teacher` | Crea cursos y modifica **solo los que creó**. |
+| `admin`   | Administra cualquier curso, incluido eliminarlo. |
+
+Una cuenta nueva nace siempre como `student`, el rol de menor privilegio. El rol
+se cambia de forma explícita en la base; no hay ruta que permita a nadie
+elevarse solo.
+
+### Política por ruta
+
+| Ruta                  | Política |
+| --------------------- | -------- |
+| `GET /courses`        | Pública. |
+| `POST /courses`       | `admin` o `teacher`. El creador queda como dueño. |
+| `PATCH /courses/:id`  | `admin`, o el `teacher` que creó ese curso. |
+| `DELETE /courses/:id` | Solo `admin`. |
+
+El orden de los guards importa: `@UseGuards(JwtAuthGuard, RolesGuard)` comprueba
+primero la identidad y después el permiso. `RolesGuard` lee `request.user.role`,
+que solo existe si `JwtAuthGuard` ya verificó el token.
+
+**La propiedad se comprueba en el servicio, no en el guard.** Un guard de roles
+no sabe quién creó un curso sin consultarlo, y esa consulta pertenece al
+servicio. Por eso `PATCH` deja pasar a cualquier `teacher` en el guard y es
+`CoursesService.update` quien compara `createdByUserId` con el actor.
+
+**El dueño sale de la identidad autenticada, nunca del cuerpo HTTP.** Si el
+cliente pudiera enviar `createdByUserId`, cualquiera se declararía dueño de un
+curso ajeno. El `ValidationPipe` además rechaza ese campo con `400` por no estar
+en el DTO.
+
+El rol viaja dentro del JWT para que el guard no consulte la base en cada
+petición. A cambio, un cambio de rol surte efecto cuando vence el token actual.
+
+## Controles de consumo
+
+La seguridad es por capas: el JWT protege la identidad, los DTO protegen la
+entrada, los roles protegen las acciones, y estos controles reducen el abuso.
+
+### CORS
+
+`CORS_ORIGINS` lista los orígenes web autorizados, separados por comas.
+
+```
+CORS_ORIGINS=http://localhost:3000
+```
+
+CORS decide qué páginas web pueden **leer** la respuesta desde un navegador.
+**No es autorización**: Postman, un script o un servidor externo llaman a la API
+igual, porque esa restricción la aplica el navegador, no el servidor. Por eso las
+rutas protegidas siguen exigiendo JWT y rol aunque el origen esté permitido.
+
+### Límite de solicitudes
+
+| Ámbito           | Límite |
+| ---------------- | ------ |
+| Toda la API      | 20 solicitudes por minuto. |
+| `POST /auth/login` | 5 intentos por minuto. |
+
+El límite de login es más estricto porque esa ruta recibe credenciales y es el
+blanco natural de una prueba masiva de contraseñas. Al superarlo responde `429`
+con un mensaje genérico que **no** dice si el correo o la contraseña eran
+correctos.
+
+### HTTPS
+
+En desarrollo local se usa `http://localhost`. **En producción la API requiere
+HTTPS**: sin él, un Bearer token viaja legible y puede interceptarse en una red
+no confiable, y la firma correcta del token no lo impide. La terminación TLS
+suele resolverse en un proxy, un balanceador o la plataforma de despliegue.
+
 ## Persistencia
 
 Los tres recursos se guardan en PostgreSQL mediante TypeORM.
