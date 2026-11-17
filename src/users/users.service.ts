@@ -10,6 +10,14 @@ export class UsersService {
     private readonly users: Repository<User>,
   ) {}
 
+  /**
+   * Listado para administracion. passwordHash es select: false, asi que una
+   * consulta normal como esta no lo arrastra.
+   */
+  findAll(): Promise<User[]> {
+    return this.users.find({ order: { id: 'ASC' } });
+  }
+
   findByEmail(email: string): Promise<User | null> {
     return this.users.findOneBy({ email });
   }

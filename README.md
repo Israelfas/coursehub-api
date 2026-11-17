@@ -256,6 +256,7 @@ elevarse solo.
 
 | Ruta                  | Política |
 | --------------------- | -------- |
+| `GET /users`          | **Solo `admin`.** Ruta exclusiva de administración: lista las cuentas y sus roles. |
 | `GET /courses`        | Pública. |
 | `POST /courses`       | `admin` o `teacher`. El creador queda como dueño. |
 | `PATCH /courses/:id`  | `admin`, o el `teacher` que creó ese curso. |
