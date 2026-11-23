@@ -647,18 +647,32 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-## Run tests
+## Pruebas unitarias
+
+Las pruebas unitarias usan Vitest y no necesitan PostgreSQL, red ni el archivo
+`.env`: el repositorio y el caso de uso se reemplazan por dobles controlados.
 
 ```bash
-# unit tests
-$ npm run test
+# todas las pruebas unitarias
+npm test
 
-# e2e tests
-$ npm run test:e2e
+# solo las del caso de uso que actualiza cursos
+npm test -- update-course
 
-# test coverage
-$ npm run test:cov
+# solo las del controlador de cursos
+npm test -- courses.controller
+
+# cobertura
+npm run test:cov
 ```
+
+| Archivo | Qué protege |
+| ------- | ----------- |
+| `src/courses/application/update-course.use-case.spec.ts` | El docente dueño y el administrador pueden actualizar; un curso inexistente da `NotFoundException`; otro docente, o un curso sin dueño, da `ForbiddenException` y no se guarda nada. |
+| `src/courses/courses.controller.spec.ts` | El controlador entrega al caso de uso el id, el DTO y la identidad autenticada, y propaga sus errores sin convertirlos en éxito. |
+
+Las pruebas e2e (`npm run test:e2e`) sí requieren la base de datos y se
+trabajan aparte.
 
 ## Deployment
 
