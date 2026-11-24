@@ -1,145 +1,120 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module.js';
+import { DataSource } from 'typeorm';
+import { UserRole } from '../src/users/entities/user-role.enum.js';
+import {
+  crearAppDePrueba,
+  crearCuentaConToken,
+  vaciarBase,
+} from './support/e2e-app.js';
 
-describe('Courses endpoints (e2e)', () => {
-  let app: INestApplication<App>;
+describe('Cursos de punta a punta (e2e)', () => {
+  let app: INestApplication;
+  let docenteA: { id: number; token: string };
+  let docenteB: { id: number; token: string };
+  let cursoId: number;
+
+  beforeAll(async () => {
+    app = await crearAppDePrueba();
+    await vaciarBase(app);
+    // Las cuentas se crean una vez por archivo: el login admite 5 intentos
+    // por minuto y repetirlo en cada caso haria fallar el conjunto con 429.
+    docenteA = await crearCuentaConToken(
+      app,
+      'docente.a@e2e.test',
+      UserRole.TEACHER,
+    );
+    docenteB = await crearCuentaConToken(
+      app,
+      'docente.b@e2e.test',
+      UserRole.TEACHER,
+    );
+  });
 
   beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    // Cada caso parte de un unico curso recien creado por el docente A.
+    await app
+      .get(DataSource)
+      .query('TRUNCATE "enrollments", "courses" RESTART IDENTITY CASCADE');
 
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
-    );
-    await app.init();
-  });
-
-  it('lists every course', () => {
-    return request(app.getHttpServer())
-      .get('/courses')
-      .expect(200)
-      .expect([
-        { id: 1, title: 'NestJS Fundamentals', level: 'beginner' },
-        { id: 2, title: 'REST APIs with NestJS', level: 'beginner' },
-        { id: 3, title: 'NestJS Architecture', level: 'intermediate' },
-      ]);
-  });
-
-  it('gets a course by id', () => {
-    return request(app.getHttpServer())
-      .get('/courses/2')
-      .expect(200)
-      .expect({ id: 2, title: 'REST APIs with NestJS', level: 'beginner' });
-  });
-
-  it('filters courses by level', () => {
-    return request(app.getHttpServer())
-      .get('/courses?level=intermediate')
-      .expect(200)
-      .expect([{ id: 3, title: 'NestJS Architecture', level: 'intermediate' }]);
-  });
-
-  it('creates, updates, and removes a course', async () => {
-    const createdCourse = {
-      id: 4,
-      title: 'Testing NestJS',
-      level: 'intermediate',
-    };
-
-    await request(app.getHttpServer())
+    const creado = await request(app.getHttpServer())
       .post('/courses')
-      .send({ title: createdCourse.title, level: createdCourse.level })
-      .expect(201)
-      .expect(createdCourse);
-
-    await request(app.getHttpServer())
-      .get('/courses/4')
-      .expect(200)
-      .expect(createdCourse);
-
-    await request(app.getHttpServer())
-      .patch('/courses/4')
-      .send({ title: 'Testing APIs with NestJS' })
-      .expect(200)
-      .expect({ ...createdCourse, title: 'Testing APIs with NestJS' });
-
-    await request(app.getHttpServer())
-      .delete('/courses/4')
-      .expect(200)
-      .expect({ ...createdCourse, title: 'Testing APIs with NestJS' });
-
-    await request(app.getHttpServer())
-      .get('/courses')
-      .expect(200)
-      .expect([
-        { id: 1, title: 'NestJS Fundamentals', level: 'beginner' },
-        { id: 2, title: 'REST APIs with NestJS', level: 'beginner' },
-        { id: 3, title: 'NestJS Architecture', level: 'intermediate' },
-      ]);
+      .set('Authorization', `Bearer ${docenteA.token}`)
+      .send({ title: 'Pruebas e2e', level: 'beginner' })
+      .expect(201);
+    cursoId = creado.body.id;
   });
 
-  it('rejects a course with an empty title', () => {
-    return request(app.getHttpServer())
-      .post('/courses')
-      .send({ title: '', level: 'beginner' })
-      .expect(400)
-      .expect((response) => {
-        expect(response.body.message).toContain('title should not be empty');
-      });
-  });
-
-  it('rejects a course with an unsupported level', () => {
-    return request(app.getHttpServer())
-      .post('/courses')
-      .send({ title: 'Testing NestJS', level: 'expert' })
-      .expect(400)
-      .expect((response) => {
-        expect(response.body.message).toContain(
-          'level must be one of the following values: beginner, intermediate, advanced',
-        );
-      });
-  });
-
-  it('partially updates a course with a valid body', async () => {
-    await request(app.getHttpServer())
-      .patch('/courses/1')
-      .send({ level: 'advanced' })
-      .expect(200)
-      .expect({ id: 1, title: 'NestJS Fundamentals', level: 'advanced' });
-
-    await request(app.getHttpServer())
-      .get('/courses/1')
-      .expect(200)
-      .expect({ id: 1, title: 'NestJS Fundamentals', level: 'advanced' });
-  });
-
-  it('rejects an invalid partial update without changing the course', async () => {
-    await request(app.getHttpServer())
-      .patch('/courses/1')
-      .send({ level: 'expert' })
-      .expect(400);
-
-    await request(app.getHttpServer())
-      .get('/courses/1')
-      .expect(200)
-      .expect({ id: 1, title: 'NestJS Fundamentals', level: 'beginner' });
-  });
-
-  it('returns 404 for operations on a missing course', async () => {
-    await request(app.getHttpServer()).get('/courses/999').expect(404);
-    await request(app.getHttpServer())
-      .patch('/courses/999')
-      .send({ level: 'advanced' })
-      .expect(404);
-    await request(app.getHttpServer()).delete('/courses/999').expect(404);
-  });
-
-  afterEach(async () => {
+  afterAll(async () => {
+    await vaciarBase(app);
     await app.close();
+  });
+
+  it('ruta pública: GET /courses lista los cursos sin token', async () => {
+    const respuesta = await request(app.getHttpServer())
+      .get('/courses')
+      .expect(200);
+
+    expect(respuesta.body.meta.total).toBe(1);
+    expect(respuesta.body.items).toEqual([
+      {
+        id: cursoId,
+        title: 'Pruebas e2e',
+        level: 'beginner',
+        createdByUserId: docenteA.id,
+      },
+    ]);
+  });
+
+  it('ruta protegida: el docente dueño actualiza su curso y el cambio queda guardado', async () => {
+    await request(app.getHttpServer())
+      .patch(`/courses/${cursoId}`)
+      .set('Authorization', `Bearer ${docenteA.token}`)
+      .send({ level: 'advanced' })
+      .expect(200)
+      .expect(({ body }) => expect(body.level).toBe('advanced'));
+
+    await request(app.getHttpServer())
+      .get(`/courses/${cursoId}`)
+      .expect(200)
+      .expect(({ body }) => expect(body.level).toBe('advanced'));
+  });
+
+  it('rechazo: sin token la ruta protegida responde 401 y el curso no cambia', async () => {
+    const respuesta = await request(app.getHttpServer())
+      .patch(`/courses/${cursoId}`)
+      .send({ level: 'advanced' })
+      .expect(401);
+
+    expect(respuesta.body).toMatchObject({
+      statusCode: 401,
+      path: `/courses/${cursoId}`,
+    });
+    await request(app.getHttpServer())
+      .get(`/courses/${cursoId}`)
+      .expect(({ body }) => expect(body.level).toBe('beginner'));
+  });
+
+  it('rechazo: otro docente recibe 403 con la forma de error común', async () => {
+    const respuesta = await request(app.getHttpServer())
+      .patch(`/courses/${cursoId}`)
+      .set('Authorization', `Bearer ${docenteB.token}`)
+      .send({ level: 'advanced' })
+      .expect(403);
+
+    expect(respuesta.body).toMatchObject({
+      statusCode: 403,
+      path: `/courses/${cursoId}`,
+      message: 'Solo puede modificar los cursos que creó',
+    });
+    expect(typeof respuesta.body.timestamp).toBe('string');
+  });
+
+  it('rechazo: un id que no es número se detiene con 400 antes del caso de uso', async () => {
+    await request(app.getHttpServer())
+      .patch('/courses/abc')
+      .set('Authorization', `Bearer ${docenteA.token}`)
+      .send({ level: 'advanced' })
+      .expect(400);
   });
 });

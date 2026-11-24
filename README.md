@@ -671,8 +671,58 @@ npm run test:cov
 | `src/courses/application/update-course.use-case.spec.ts` | El docente dueño y el administrador pueden actualizar; un curso inexistente da `NotFoundException`; otro docente, o un curso sin dueño, da `ForbiddenException` y no se guarda nada. |
 | `src/courses/courses.controller.spec.ts` | El controlador entrega al caso de uso el id, el DTO y la identidad autenticada, y propaga sus errores sin convertirlos en éxito. |
 
-Las pruebas e2e (`npm run test:e2e`) sí requieren la base de datos y se
-trabajan aparte.
+## Pruebas e2e
+
+Levantan la API completa y le envían solicitudes HTTP reales con Supertest.
+Usan una base de datos exclusiva de pruebas, nunca la de desarrollo.
+
+1. Crear la base `coursehub_test` en el PostgreSQL local:
+
+   ```bash
+   createdb coursehub_test
+   ```
+
+2. Copiar la plantilla y completar la contraseña local y un secreto JWT de prueba:
+
+   ```bash
+   cp .env.test.example .env.test
+   ```
+
+3. Ejecutar:
+
+   ```bash
+   npm run test:e2e
+   ```
+
+`npm run test:e2e` activa `NODE_ENV=test`, así que la API lee `.env.test`.
+En ese modo la base debe terminar en `_test`, de lo contrario la API no arranca:
+al iniciar se borra y se recrea el esquema, y antes de cada caso se vacían las
+tablas. Por eso el conjunto da el mismo resultado cada vez que se ejecuta.
+
+| Archivo | Qué verifica |
+| ------- | ------------ |
+| `test/app.e2e-spec.ts` | Ruta pública `GET /`. |
+| `test/courses.e2e-spec.ts` | Ruta pública `GET /courses`; ruta protegida `PATCH /courses/:id` con el token del docente dueño; rechazos con 401 sin token, 403 con otro docente y 400 con un id inválido. |
+
+## Verificaciones locales antes de subir cambios
+
+Son las mismas que ejecuta GitHub Actions en `.github/workflows/quality.yml`
+en cada push a `main` y en cada pull request:
+
+```bash
+npm ci              # instala exactamente lo que fija package-lock.json
+npm run lint        # análisis estático
+npm test            # pruebas unitarias
+npm run test:e2e    # pruebas e2e contra coursehub_test
+npm run build       # compilación
+```
+
+En las pull requests también corre la revisión de dependencias de GitHub, que
+avisa si un cambio agrega un paquete con vulnerabilidades conocidas.
+
+`npm audit` informa hoy vulnerabilidades en dependencias ya existentes. Queda
+pendiente revisarlas una por una antes de actualizar: no se corrigen con
+`npm audit fix --force`, que puede cambiar versiones mayores sin control.
 
 ## Deployment
 
