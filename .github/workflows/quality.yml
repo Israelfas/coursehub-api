@@ -48,6 +48,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      # package-lock.json se genero con npm 12. El npm 10 que trae Node 22 resuelve
+      # las dependencias pares de otra forma y lo considera desincronizado, asi
+      # que se usa la misma version con la que se creo el archivo de bloqueo.
+      - name: Usar la version de npm del archivo de bloqueo
+        run: npm install -g npm@12.0.2
+
       - name: Instalar dependencias desde package-lock.json
         run: npm ci
 

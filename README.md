@@ -717,6 +717,9 @@ npm run test:e2e    # pruebas e2e contra coursehub_test
 npm run build       # compilación
 ```
 
+`package-lock.json` se generó con npm 12 y el flujo usa esa misma versión. Con
+el npm 10 que trae Node 22, `npm ci` lo rechaza como desincronizado.
+
 En las pull requests también corre la revisión de dependencias de GitHub, que
 avisa si un cambio agrega un paquete con vulnerabilidades conocidas.
 
